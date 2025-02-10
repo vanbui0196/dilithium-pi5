@@ -112,18 +112,56 @@ namespace mldsa
         }
 
         /**
-         * @brief Make hint according to the
+         * @brief Dilithium Ref Code: Calculate the hint
          * 
          * @param a0 
          * @param a1 
-         * @return uint32_t 
+         * @return uint32_t Hint result
          */
-        uint32_t make_hint(int32_t a0, int32_t a1) {
-            if(a0 > GAMMA2 || a0 < -GAMMA2 || (a0 == -GAMMA2 && a1 != 0))
-              return 1;
-          
-            return 0;
-          }
+         uint32_t make_hint(int32_t a0, int32_t a1) {
+            
+            // return value
+            uint32_t retVal = 0;
+            if(a0 > GAMMA2 || a0 < -GAMMA2 || (a0 == -GAMMA2 && a1 != 0)) {
+                retVal =  1;
+            }
+            return retVal;
+        }
+
+        int32_t use_hint(int32_t a, uint32_t hint) {
+        /* Get the high bit and low bit according to the hint */
+        auto [a1, a0] = decompose(a);
+
+        /* no hint required, return the the default value */
+        if(hint == 0)
+        {
+            return a1;
+        }
+        if(GAMMA2 == (Q-1)/32) 
+        {
+            if(a0 > 0)
+            {
+                return (a1 + 1) & 15;
+            }
+
+            else
+            {
+                return (a1 - 1) & 15;
+            }
+
+        }
+        else if (GAMMA2 == (Q-1)/88)
+        {
+            if(a0 > 0)
+            {
+                return (a1 == 43) ?  0 : a1 + 1;
+            }
+            else
+            {
+                return (a1 ==  0) ? 43 : a1 - 1;
+            }
+        }
     }
+}
     
 } // namespace mldsa
