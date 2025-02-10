@@ -15,7 +15,8 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 #set the source file
 set(SOURCES
     source/ntt.cpp
-    source/poly.cpp)
+    source/poly_algo.cpp
+    source/utils.cpp)
 
 # create the library dilithium
 add_library(dilithium ${SOURCES})

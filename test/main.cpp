@@ -2,7 +2,12 @@
 #include <algorithm>
 #include <iostream>
 #include "ntt.h"
+#include "utils.h"
 
 int main() {
-  std::cout << "Hello World!" << return_one()  << std::endl;
+  // check for the function of the file is the main thing that we check over
+  // chekc on the main 
+  auto a = mldsa::utils::montgomery_reduce(64);
+  std::cout << a << std::endl;
+  
 }
