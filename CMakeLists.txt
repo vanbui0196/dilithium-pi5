@@ -10,13 +10,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 # Include directories
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/include
+                    ${PROJECT_SOURCE_DIR}/ref/include)
 
 #set the source file
 set(SOURCES
     source/ntt.cpp
     source/poly_algo.cpp
-    source/utils.cpp)
+    source/utils.cpp
+    ref/source/fips202.c)
 
 # create the library dilithium
 add_library(dilithium ${SOURCES})

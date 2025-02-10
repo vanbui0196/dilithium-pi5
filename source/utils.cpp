@@ -1,3 +1,11 @@
+/**
+ * @file utils.cpp
+ * @author Bui Khanh Van=
+ * @brief Clone version of the Dilithium reference code
+ * @version 0.1
+ * @date 2025-02-10
+ * 
+ */
 #include "utils.h"
 
 namespace mldsa
