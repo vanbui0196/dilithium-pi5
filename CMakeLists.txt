@@ -18,6 +18,7 @@ set(SOURCES
     source/ntt.cpp
     source/poly_algo.cpp
     source/utils.cpp
+    ref/source/stream.cpp
     ref/source/fips202.c)
 
 # create the library dilithium
