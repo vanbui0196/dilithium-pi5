@@ -84,7 +84,7 @@ namespace mldsa
             a0 = a - (a1 << D);
 
             // return the HighBits(a1) + LowBits(a0))
-            return {a1, a0};
+            return {a0, a1};
         }
 
         /**
@@ -116,7 +116,7 @@ namespace mldsa
             a0 -= (((Q-1)/2 - a0) >> 31) & Q;
 
             // Return the a1 and the a0
-            return {a1, a0};
+            return {a0, a1};
         }
 
         /**
@@ -138,7 +138,7 @@ namespace mldsa
 
         int32_t use_hint(int32_t a, uint32_t hint) {
         /* Get the high bit and low bit according to the hint */
-        auto [a1, a0] = decompose(a);
+        auto [a0, a1] = decompose(a);
 
         /* no hint required, return the the default value */
         if(hint == 0)

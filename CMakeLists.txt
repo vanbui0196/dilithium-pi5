@@ -28,7 +28,12 @@ add_executable(main_test
     test/main.cpp
 )
 
+add_executable(poly_algo_test
+    test/test_poly_algo.cpp
+)
+
 # Link the test executable with the library
 target_link_libraries(main_test PRIVATE dilithium)
+target_link_libraries(poly_algo_test PRIVATE dilithium)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
