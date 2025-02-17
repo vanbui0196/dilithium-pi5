@@ -13,10 +13,15 @@ private:
     std::array<int32_t, N> _coeffs; // coefficient of the data
     bool ntt_status;   // current status of the ntt transform of polynomial
     uint32_t _coefficient_from_3bytes(int32_t* coeff, uint32_t length, const uint8_t* buf, uint32_t buflen);
+    uint32_t _coefficient_from_halfbyte(int32_t* coeff, uint32_t length, const uint8_t* buf, uint32_t buflen);
     
     // constant for handling the buffer block of the stream function
     static constexpr uint32_t POLY_UNIFORM_NBLOCKS = 
     ((768 + mldsa::stream_function::STREAM128_BLOCKBYTES - 1)/mldsa::stream_function::STREAM128_BLOCKBYTES);
+
+    static constexpr uint32_t POLY_UNIFORM_ETA_NBLOCKS = 
+    (ETA == 2) ? ((136 + mldsa::stream_function::STREAM256_BLOCKBYTES - 1)/ mldsa::stream_function::STREAM256_BLOCKBYTES) :
+    ((227 + mldsa::stream_function::STREAM256_BLOCKBYTES - 1)/ mldsa::stream_function::STREAM256_BLOCKBYTES);
     
 public:
     // Constructor 
@@ -46,7 +51,8 @@ public:
     bool norm_check(int32_t bound);
 
     // polynomial uniform (from SHAKE function)
-    void polynomial_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce);
+    void polynomial_poly_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce);
+    void polynomial_uniform_eta(const std::array<uint8_t, CRHBYTES>& seed, uint16_t nonce);
     
 
     // Operator overloading

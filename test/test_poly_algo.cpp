@@ -60,6 +60,11 @@ int main(void) {
     for(auto i = 0; i < SEEDBYTES; i++) {
         seed_check[i] = i;
     }
+
+    std::array<uint8_t, CRHBYTES> seed_check_eta = {0};
+    for(auto i = 0; i < CRHBYTES; i++) {
+        seed_check_eta[i] = i;
+    }
     keccak_state state;
     uint16_t nonce = 0x1010;
     // mldsa::stream_function::shake128_stream_init(&state,
@@ -77,6 +82,7 @@ int main(void) {
     //     std::cout << std::hex << static_cast<int>(buf[i]) << " ";
     // } std::cout << std::endl;
 
-    a.polynomial_uniform(seed_check, nonce);
+
+    a.polynomial_uniform_eta(seed_check_eta, nonce);
     std::cout << a;
 }

@@ -231,10 +231,10 @@ uint32_t Polynomial::_coefficient_from_3bytes(int32_t* coeff, uint32_t length, c
  * @brief Sampling the coefficient in T_{q}. This equal to the function RejNTTPoly in FIPS.204
  * @ref poly_uniform
  * 
- * @param buffer 
- * @param nonce 
+ * @param seed Seed for the Shake generation
+ * @param nonce Two nonce byte
  */
-void Polynomial::polynomial_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce) { 
+void Polynomial::polynomial_poly_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce) { 
     size_t i{0}, ctr{0}, off{0};
 
     // get the buffer length for getting data from Shake function
@@ -251,11 +251,6 @@ void Polynomial::polynomial_uniform(const std::array<uint8_t, SEEDBYTES>& seed, 
         
     shake128_squeezeblocks(buf, this->POLY_UNIFORM_NBLOCKS, &state);
         
-    // for(auto i = 0; i < buflen + 2; i ++ ) {
-    //     std::cout << std::hex << (int)buf[i] << " ";
-    // }                                             
-    // std::cout << std::endl;
-    
     //Convert from data to the coefficient
     ctr = this->_coefficient_from_3bytes(this->_coeffs.data(), N, buf, buflen);
 
@@ -271,6 +266,83 @@ void Polynomial::polynomial_uniform(const std::array<uint8_t, SEEDBYTES>& seed, 
         ctr += this->_coefficient_from_3bytes(this->_coeffs.data() + ctr, N - ctr, buf, buflen);
       }
 }
+
+/**
+ * @brief This function equals to the coefficient from the half-byte. CoeffFromHalfByte
+ * @ref rej_eta
+ * @param coeff Coefficient array (this->_coefficient)
+ * @param length Length of the requested data
+ * @param buf Buffer from the SHAKE function
+ * @param buflen Length of the buffer
+ * @return uint32_t Number of sampled coefficients
+ */
+uint32_t Polynomial::_coefficient_from_halfbyte(int32_t* coeff, uint32_t length, const uint8_t* buf, uint32_t buflen) {
+    // local variable 
+    size_t ctr{0}, pos{0}; // counter
+    uint32_t z0{0}, z1{0}; // sample value from the shake streaming
+    
+    while((ctr < length) && (pos < buflen))  {
+        /* convert from 3 bytes in to an coefficient */
+        z0 = buf[pos] & 0x0F;
+        z1 = buf[pos++] >> 4;
+        
+        if (ETA == 2)
+        {
+            if(z0 < 15) 
+            {
+                z0 = z0 - (205*z0 >> 10)*5;
+                coeff[ctr++] = 2 - z0;
+            }
+            if((z1 < 15) && (ctr < length)) 
+            {
+                z1 = z1 - (205*z1 >> 10)*5;
+                coeff[ctr++] = 2 - z1;
+            }
+        }
+        else if (ETA == 4) 
+        {
+            if(z0 < 9) {
+                coeff[ctr++] = 4 - z0;
+            }
+            
+            if((z1 < 9) && (ctr < length))
+            {
+                coeff[ctr++] = 4 - z1;
+            }
+        }
+    }
+    return ctr;
+}
+
+void Polynomial::polynomial_uniform_eta(const std::array<uint8_t, CRHBYTES>& seed, uint16_t nonce) {
+    
+    size_t ctr{0};
+
+    // get the buffer length for getting data from Shake function
+    uint32_t buflen = this->POLY_UNIFORM_ETA_NBLOCKS * mldsa::stream_function::STREAM256_BLOCKBYTES;
+    
+    // buffer for getting byte form shake {init to 0}
+    uint8_t buf[this->POLY_UNIFORM_ETA_NBLOCKS * mldsa::stream_function::STREAM256_BLOCKBYTES] = {0};
+
+    // variable for storing the byte
+    stream256_state state;
+    // init the stream G (Shake256 function)
+    mldsa::stream_function::shake256_stream_init(&state, seed, nonce);
+    // get the psuedo random data from the byte
+    shake256_squeezeblocks(buf, this->POLY_UNIFORM_ETA_NBLOCKS, &state);
+
+    // convert the data from shake into the polynomial coefficient
+    ctr = this->_coefficient_from_halfbyte(this->_coeffs.data(), N, buf, buflen);
+
+    std::cout << "Number of block: " << ctr << std::endl;
+    // handle the defekt case (Rare case)
+    while(ctr < N) {
+        shake256_squeezeblocks(buf, 1, &state);
+        ctr += this->_coefficient_from_halfbyte(this->_coeffs.data(), N - ctr, buf, mldsa::stream_function::STREAM256_BLOCKBYTES);
+    }
+
+}
+
 
 /**
  * @brief Correct the polynomial HightBits 
