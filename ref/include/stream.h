@@ -8,6 +8,9 @@ extern "C" {
 #include <vector>
 #include "constant.h"
 
+typedef keccak_state stream128_state;
+typedef keccak_state stream256_state;
+
 namespace mldsa {
     namespace stream_function{
 

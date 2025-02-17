@@ -12,6 +12,11 @@ class Polynomial {
 private:
     std::array<int32_t, N> _coeffs; // coefficient of the data
     bool ntt_status;   // current status of the ntt transform of polynomial
+    uint32_t _coefficient_from_3bytes(int32_t* coeff, uint32_t length, const uint8_t* buf, uint32_t buflen);
+    
+    // constant for handling the buffer block of the stream function
+    static constexpr uint32_t POLY_UNIFORM_NBLOCKS = 
+    ((768 + mldsa::stream_function::STREAM128_BLOCKBYTES - 1)/mldsa::stream_function::STREAM128_BLOCKBYTES);
     
 public:
     // Constructor 
@@ -29,10 +34,20 @@ public:
     void reduced(void);
     void negative_add_Q(void);
     void shift_toleft_2D(void);
+
+    // decompose funtion
     void power2round(Polynomial& lowbits_poly, Polynomial& highbits_poly);
     void decompose(Polynomial& lowbits_poly, Polynomial& highbits_poly);
-    uint32_t make_hint(Polynomial& lowbits_poly, Polynomial& highbits_poly, Polynomial& hints_poly);
+
+    //hint related methods
+    uint32_t make_hint(Polynomial& hints_poly, const Polynomial& lowbits_poly,const Polynomial& highbits_poly);
+    void use_hint(Polynomial& corrected_poly, const Polynomial& highbits_poly, const Polynomial& hints_poly);
     Polynomial ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& poly_right);
+    bool norm_check(int32_t bound);
+
+    // polynomial uniform (from SHAKE function)
+    void polynomial_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce);
+    
 
     // Operator overloading
     Polynomial& operator+=(const Polynomial& poly); // adding 2 polynomials (!!! no Q reduction)
@@ -44,6 +59,9 @@ public:
     friend Polynomial operator-(Polynomial poly_left, const Polynomial& poly_right);
     friend Polynomial operator*(Polynomial poly_left, const Polynomial& poly_right);
 
+    //friend hint function
+    friend uint32_t poly_make_hint(Polynomial& hints_poly, const Polynomial& lowbits_poly,const Polynomial& highbits_poly);
+    friend void poly_use_hint(Polynomial& corrected_poly, const Polynomial& highbits_poly, const Polynomial& hints_poly);
     // test feature
     friend std::ostream& operator<<(std::ostream& os, const Polynomial& poly);
 };

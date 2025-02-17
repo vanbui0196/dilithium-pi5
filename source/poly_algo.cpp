@@ -157,24 +157,148 @@ void Polynomial::decompose(Polynomial& lowbits_poly, Polynomial& highbits_poly) 
 }
 
 /**
- * @brief Make the hint
+ * @brief MakeHint for correct the HighBits in case of the boundary
  * 
- * @param lowbits_poly 
- * @param highbits_poly 
- * @param hints_poly 
+ * @param lowbits_poly Constant reference to the LowBits polynomial
+ * @param highbits_poly Constant reference to the HighBits polynomial
+ * @param hints_poly Reference to the Hint polynoial
  * @return uint32_t 
  */
-uint32_t Polynomial::make_hint(Polynomial& lowbits_poly, Polynomial& highbits_poly, Polynomial& hints_poly) {
+uint32_t Polynomial::make_hint(Polynomial& hints_poly, const Polynomial& lowbits_poly,const Polynomial& highbits_poly) {
     // Calculate the total hints
     uint32_t sum  = 0;
     for(auto i = 0; i < N; i++) {
-        // Update the hint poly
-        hints_poly._coeffs.at(i) = mldsa::utils::make_hint(lowbits_poly._coeffs.at(i), highbits_poly._coeffs.at(i));
+        // Update the hint poly cast the value to the int32_t for safe handling
+        hints_poly._coeffs.at(i) = static_cast<int32_t>(mldsa::utils::make_hint(lowbits_poly._coeffs.at(i), highbits_poly._coeffs.at(i)));
+        // Return the total hints
         sum = sum + hints_poly._coeffs.at(i);
     }
     return sum;
 }
 
+/**
+ * @brief MakeHint for correct the HighBits in case of the boundary
+ * 
+ * @param lowbits_poly Constant reference to the LowBits polynomial
+ * @param highbits_poly Constant reference to the HighBits polynomial
+ * @param hints_poly Reference to the Hint polynoial
+ * @return uint32_t 
+ */
+uint32_t poly_make_hint(Polynomial& hints_poly, const Polynomial& lowbits_poly,const Polynomial& highbits_poly) {
+    // Calculate the total hints
+    uint32_t sum  = 0;
+    for(auto i = 0; i < N; i++) {
+        // Update the hint poly cast the value to the int32_t for safe handling
+        hints_poly._coeffs.at(i) = static_cast<int32_t>(mldsa::utils::make_hint(lowbits_poly._coeffs.at(i), highbits_poly._coeffs.at(i)));
+        // Return the total hints
+        sum = sum + hints_poly._coeffs.at(i);
+    }
+    return sum;
+}
+
+/**
+ * @brief Convert 3 bytes from the SHAKE output in to coefficient.
+ * @ref rej_uniform
+ * 
+ * @param length Length of the the total coefficients that requrieds
+ * @param buf Buffer data filled from SHAKE
+ * @param bufflen Lenght of the buffer
+ * @return uint32_t Number of the coeffient
+ */
+uint32_t Polynomial::_coefficient_from_3bytes(int32_t* coeff, uint32_t length, const uint8_t* buf, uint32_t buflen) {
+    
+
+    
+    // local variable 
+    size_t ctr{0}, pos{0}; // counter
+    uint32_t sample_value; // sample value from the shake streaming
+    
+    while((ctr < length) && ((pos + 3) <= buflen)) {
+        /* convert from 3 bytes in to an coefficient */
+        sample_value  = buf[pos++];
+        sample_value |= (uint32_t)buf[pos++] << 8;
+        sample_value |= (uint32_t)buf[pos++] << 16;
+        sample_value &= 0x7FFFFF;
+        
+        if(sample_value < Q) { 
+            coeff[ctr++] = sample_value;
+        }
+    }
+    return ctr;
+}
+
+/**
+ * @brief Sampling the coefficient in T_{q}. This equal to the function RejNTTPoly in FIPS.204
+ * @ref poly_uniform
+ * 
+ * @param buffer 
+ * @param nonce 
+ */
+void Polynomial::polynomial_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce) { 
+    size_t i{0}, ctr{0}, off{0};
+
+    // get the buffer length for getting data from Shake function
+    uint32_t buflen = this->POLY_UNIFORM_NBLOCKS * mldsa::stream_function::STREAM128_BLOCKBYTES;
+
+    // buffer for getting byte form shake {init to 0}
+    uint8_t buf[this->POLY_UNIFORM_NBLOCKS * mldsa::stream_function::STREAM128_BLOCKBYTES + 2] = {0};
+
+    // state for the requesting
+    stream128_state state;
+    
+    // init the streaming function
+    mldsa::stream_function::shake128_stream_init(&state, seed, nonce);
+        
+    shake128_squeezeblocks(buf, this->POLY_UNIFORM_NBLOCKS, &state);
+        
+    // for(auto i = 0; i < buflen + 2; i ++ ) {
+    //     std::cout << std::hex << (int)buf[i] << " ";
+    // }                                             
+    // std::cout << std::endl;
+    
+    //Convert from data to the coefficient
+    ctr = this->_coefficient_from_3bytes(this->_coeffs.data(), N, buf, buflen);
+
+    // Retry to to update the coefficient (Extremly rare case)
+    while(ctr < N) {
+        off = buflen % 3;
+        for(i = 0; i < off; ++i)
+        {
+            buf[i] = buf[buflen - off + i];
+        }
+        shake128_squeezeblocks(buf + off, 1, &state);
+        buflen = mldsa::stream_function::STREAM128_BLOCKBYTES + off;
+        ctr += this->_coefficient_from_3bytes(this->_coeffs.data() + ctr, N - ctr, buf, buflen);
+      }
+}
+
+/**
+ * @brief Correct the polynomial HightBits 
+ * 
+ * @param corrected_poly Reference to the polynomial will contain the corre cted HighBits
+ * @param highbits_poly Current HighBits polynomial
+ * @param hints_poly Hints
+ */
+void Polynomial::use_hint(Polynomial& corrected_poly, const Polynomial& highbits_poly, const Polynomial& hints_poly) {
+    for(auto i = 0; i < N; i++) {
+        corrected_poly._coeffs.at(i) = mldsa::utils::use_hint(highbits_poly._coeffs.at(i), 
+                                                              hints_poly._coeffs.at(i));
+    }
+}
+
+/**
+ * @brief Correct the polynomial HightBits 
+ * 
+ * @param corrected_poly Reference to the polynomial will contain the corrected HighBits
+ * @param highbits_poly Current HighBits polynomial
+ * @param hints_poly Hints
+ */
+void poly_use_hint(Polynomial& corrected_poly, const Polynomial& highbits_poly, const Polynomial& hints_poly) {
+    for(auto i = 0; i < N; i++) {
+        corrected_poly._coeffs.at(i) = mldsa::utils::use_hint(highbits_poly._coeffs.at(i), 
+                                                              hints_poly._coeffs.at(i));
+    }
+}
 
 /**
  * @brief Adding two polynomial coefficient together (not comming with the Q reduction)
@@ -203,6 +327,37 @@ Polynomial& Polynomial::operator-=(const Polynomial& poly) {
     }
     return *this;
 }
+
+/**
+ * @brief Check if the infinitive norm of the boundary is smaller than given bound
+ * @ref poly_chknorm
+ * @param bound Boundary (GAMMA1 - BETA) or (GAMMA2 - BETA)
+ * @return true 
+ * @return false 
+ */
+bool Polynomial::norm_check(int32_t bound) { 
+    
+    // local variable
+    bool retVal = false; // retval
+    int32_t coeff;       // current coefficient
+
+    // check if the norm is smaller than the bound
+    for(size_t i = 0; i < N; i++) {
+        coeff = this->_coeffs.at(i);
+
+        // get the absolute value
+        coeff = std::abs(coeff);
+
+        // coefficient greater that the boundary
+        if(coeff >= bound) {
+            retVal = true;
+            break;
+        }
+
+    }
+    return retVal;
+}
+
 
 /**
  * @brief Perform the polymomial multiplication in the ntt domain.
@@ -329,6 +484,6 @@ std::ostream& operator<<(std::ostream& os, const Polynomial& poly)
     for(const auto& element : poly._coeffs) {
         os << element << " ";
     }
-    os << "\n=============================================================================================================";
+    os << "\n=============================================================================================================\n\n";
     return os;
 }
