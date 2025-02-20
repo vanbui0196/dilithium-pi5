@@ -228,7 +228,8 @@ uint32_t Polynomial::_coefficient_from_3bytes(int32_t* coeff, uint32_t length, c
 }
 
 /**
- * @brief Sampling the coefficient in T_{q}. This equal to the function RejNTTPoly in FIPS.204
+ * @brief Sampling the coefficient in T_{q}. This equal to the function RejNTTPoly in FIPS.204. Called by ExpandA fucnction
+ * 
  * @ref poly_uniform
  * 
  * @param seed Seed for the Shake generation
@@ -314,6 +315,12 @@ uint32_t Polynomial::_coefficient_from_halfbyte(int32_t* coeff, uint32_t length,
     return ctr;
 }
 
+/**
+ * @brief Sample poly in R with coefficient in [-η,η]. This equals to the function RejBoundedPoly in FIPS204. Called for ExpandS
+ * 
+ * @param seed Seed for SHAKE squeeze function (G:shake256)
+ * @param nonce 2 nonce bytes
+ */
 void Polynomial::polynomial_uniform_eta(const std::array<uint8_t, CRHBYTES>& seed, uint16_t nonce) {
     
     size_t ctr{0};
@@ -333,16 +340,363 @@ void Polynomial::polynomial_uniform_eta(const std::array<uint8_t, CRHBYTES>& see
 
     // convert the data from shake into the polynomial coefficient
     ctr = this->_coefficient_from_halfbyte(this->_coeffs.data(), N, buf, buflen);
-
-    std::cout << "Number of block: " << ctr << std::endl;
+    
     // handle the defekt case (Rare case)
     while(ctr < N) {
         shake256_squeezeblocks(buf, 1, &state);
         ctr += this->_coefficient_from_halfbyte(this->_coeffs.data(), N - ctr, buf, mldsa::stream_function::STREAM256_BLOCKBYTES);
     }
-
 }
 
+/**
+ * @brief Unpack the coefficient from the buffer
+ * 
+ * @param buf Buffer that used for packing the coefficient
+ */
+void Polynomial::polyz_unpack(const uint8_t *buf) {
+    size_t i{0};
+    if(GAMMA1 == (1 << 17)) {
+        for(i = 0; i < N/4; ++i) {
+            this->_coeffs[4*i+0]  = buf[9*i+0];
+            this->_coeffs[4*i+0] |= (uint32_t)buf[9*i+1] << 8;
+            this->_coeffs[4*i+0] |= (uint32_t)buf[9*i+2] << 16;
+            this->_coeffs[4*i+0] &= 0x3FFFF;
+            
+            this->_coeffs[4*i+1]  = buf[9*i+2] >> 2;
+            this->_coeffs[4*i+1] |= (uint32_t)buf[9*i+3] << 6;
+            this->_coeffs[4*i+1] |= (uint32_t)buf[9*i+4] << 14;
+            this->_coeffs[4*i+1] &= 0x3FFFF;
+            
+            this->_coeffs[4*i+2]  = buf[9*i+4] >> 4;
+            this->_coeffs[4*i+2] |= (uint32_t)buf[9*i+5] << 4;
+            this->_coeffs[4*i+2] |= (uint32_t)buf[9*i+6] << 12;
+            this->_coeffs[4*i+2] &= 0x3FFFF;
+            
+            this->_coeffs[4*i+3]  = buf[9*i+6] >> 6;
+            this->_coeffs[4*i+3] |= (uint32_t)buf[9*i+7] << 2;
+            this->_coeffs[4*i+3] |= (uint32_t)buf[9*i+8] << 10;
+            this->_coeffs[4*i+3] &= 0x3FFFF;
+            
+            this->_coeffs[4*i+0] = GAMMA1 - this->_coeffs[4*i+0];
+            this->_coeffs[4*i+1] = GAMMA1 - this->_coeffs[4*i+1];
+            this->_coeffs[4*i+2] = GAMMA1 - this->_coeffs[4*i+2];
+            this->_coeffs[4*i+3] = GAMMA1 - this->_coeffs[4*i+3];
+        }
+    }
+    else if (GAMMA1 == (1 << 19)) {
+        for(i = 0; i < N/2; ++i) {
+            this->_coeffs[2*i+0]  = buf[5*i+0];
+            this->_coeffs[2*i+0] |= (uint32_t)buf[5*i+1] << 8;
+            this->_coeffs[2*i+0] |= (uint32_t)buf[5*i+2] << 16;
+            this->_coeffs[2*i+0] &= 0xFFFFF;
+            
+            this->_coeffs[2*i+1]  = buf[5*i+2] >> 4;
+            this->_coeffs[2*i+1] |= (uint32_t)buf[5*i+3] << 4;
+            this->_coeffs[2*i+1] |= (uint32_t)buf[5*i+4] << 12;
+            /* this->_coeffs[2*i+1] &= 0xFFFFF; */ /* No effect, since we're anyway at 20 bits */
+            
+            this->_coeffs[2*i+0] = GAMMA1 - this->_coeffs[2*i+0];
+            this->_coeffs[2*i+1] = GAMMA1 - this->_coeffs[2*i+1];
+        }
+    }
+}
+
+/**
+ * @brief This will sample the coefficient from the H.squeeze function
+ * 
+ * @param seed Seed for the H function
+ * @param nonce 2 nonce bytes
+ */
+void Polynomial::polynomial_uniform_gamma1(const std::array<uint8_t, CRHBYTES>& seed, uint16_t nonce) {
+    // buffer for querying data from H (shake256 function)
+    uint8_t buf[this->POLY_UNIFORM_GAMMA1_NBLOCKS * mldsa::stream_function::STREAM256_BLOCKBYTES] = {0u};
+    
+    // squeeze data from H function
+    stream256_state state;
+    mldsa::stream_function::shake256_stream_init(&state,seed, nonce);
+    shake256_squeezeblocks(buf, this->POLY_UNIFORM_GAMMA1_NBLOCKS, &state);
+
+    // Unpack data from the shake function
+    this->polyz_unpack(buf);
+}
+
+
+/**
+ * @brief SampleInBall function that return correct τ \in {-1;1}
+ * @ref poly_challenge
+ * @param seed Seed for the H.squeeze() function
+ */
+void Polynomial::polynomial_sample_in_ball(const std::array<uint8_t, CTILDEBYTES>& seed) {
+    
+    
+    size_t i{0}, b{0}, pos{0};
+    uint64_t signs;
+    uint8_t buf[SHAKE256_RATE];
+    keccak_state state;
+
+    shake256_init(&state);
+    shake256_absorb(&state, seed.data(), CTILDEBYTES);
+    shake256_finalize(&state);
+    shake256_squeezeblocks(buf, 1, &state);
+
+    signs = 0;
+    for(i = 0; i < 8; ++i)
+      signs |= (uint64_t)buf[i] << 8*i;
+    pos = 8;
+  
+    for(i = 0; i < N; ++i)
+      this->_coeffs[i] = 0;
+    for(i = N-TAU; i < N; ++i) {
+      do {
+        if(pos >= SHAKE256_RATE) {
+          shake256_squeezeblocks(buf, 1, &state);
+          pos = 0;
+        }
+  
+        b = buf[pos++];
+      } while(b > i);
+  
+      this->_coeffs[i] = this->_coeffs[b];
+      this->_coeffs[b] = 1 - 2*(signs & 1);
+      signs >>= 1;
+    }
+}
+
+/**
+ * @brief Bit pack function with Poly in Eta range
+ * 
+ * @param buf Pointer to packed buffer
+ */
+void Polynomial::polyeta_pack(uint8_t* buf) {
+    
+    unsigned int i;
+    uint8_t temp[8];
+    
+    if(ETA == 2) {
+        for(i = 0; i < N/8; ++i) {
+            temp[0] = ETA - this->_coeffs[8*i+0];
+            temp[1] = ETA - this->_coeffs[8*i+1];
+            temp[2] = ETA - this->_coeffs[8*i+2];
+            temp[3] = ETA - this->_coeffs[8*i+3];
+            temp[4] = ETA - this->_coeffs[8*i+4];
+            temp[5] = ETA - this->_coeffs[8*i+5];
+            temp[6] = ETA - this->_coeffs[8*i+6];
+            temp[7] = ETA - this->_coeffs[8*i+7];
+            
+            buf[3*i+0]  = (temp[0] >> 0) | (temp[1] << 3) | (temp[2] << 6);
+            buf[3*i+1]  = (temp[2] >> 2) | (temp[3] << 1) | (temp[4] << 4) | (temp[5] << 7);
+            buf[3*i+2]  = (temp[5] >> 1) | (temp[6] << 2) | (temp[7] << 5);
+        }
+    }
+    else if (ETA == 4) {
+        for(i = 0; i < N/2; ++i) {
+            temp[0] = ETA - this->_coeffs[2*i+0];
+            temp[1] = ETA - this->_coeffs[2*i+1];
+            buf[i] = temp[0] | (temp[1] << 4);
+        }
+    }
+    
+}
+
+void Polynomial::polyeta_unpack(const uint8_t *a) {
+    size_t i{0};
+    if(ETA == 2) {
+        for(i = 0; i < N/8; ++i) {
+            this->_coeffs[8*i+0] =  (a[3*i+0] >> 0) & 7;
+            this->_coeffs[8*i+1] =  (a[3*i+0] >> 3) & 7;
+            this->_coeffs[8*i+2] = ((a[3*i+0] >> 6) | (a[3*i+1] << 2)) & 7;
+            this->_coeffs[8*i+3] =  (a[3*i+1] >> 1) & 7;
+            this->_coeffs[8*i+4] =  (a[3*i+1] >> 4) & 7;
+            this->_coeffs[8*i+5] = ((a[3*i+1] >> 7) | (a[3*i+2] << 1)) & 7;
+            this->_coeffs[8*i+6] =  (a[3*i+2] >> 2) & 7;
+            this->_coeffs[8*i+7] =  (a[3*i+2] >> 5) & 7;
+            
+            this->_coeffs[8*i+0] = ETA - this->_coeffs[8*i+0];
+            this->_coeffs[8*i+1] = ETA - this->_coeffs[8*i+1];
+            this->_coeffs[8*i+2] = ETA - this->_coeffs[8*i+2];
+            this->_coeffs[8*i+3] = ETA - this->_coeffs[8*i+3];
+            this->_coeffs[8*i+4] = ETA - this->_coeffs[8*i+4];
+            this->_coeffs[8*i+5] = ETA - this->_coeffs[8*i+5];
+            this->_coeffs[8*i+6] = ETA - this->_coeffs[8*i+6];
+            this->_coeffs[8*i+7] = ETA - this->_coeffs[8*i+7];
+        }
+    } else if(ETA == 4) { 
+        for(i = 0; i < N/2; ++i) {
+            this->_coeffs[2*i+0] = a[i] & 0x0F;
+            this->_coeffs[2*i+1] = a[i] >> 4;
+            this->_coeffs[2*i+0] = ETA - this->_coeffs[2*i+0];
+            this->_coeffs[2*i+1] = ETA - this->_coeffs[2*i+1];
+        }
+    }
+}
+
+void Polynomial::polyt1_pack(uint8_t* buf) {
+    size_t i;
+
+    for(i = 0; i < N/4; ++i) {
+        buf[5*i+0] = (this->_coeffs[4*i+0] >> 0);
+        buf[5*i+1] = (this->_coeffs[4*i+0] >> 8) | (this->_coeffs[4*i+1] << 2);
+        buf[5*i+2] = (this->_coeffs[4*i+1] >> 6) | (this->_coeffs[4*i+2] << 4);
+        buf[5*i+3] = (this->_coeffs[4*i+2] >> 4) | (this->_coeffs[4*i+3] << 6);
+        buf[5*i+4] = (this->_coeffs[4*i+3] >> 2);
+      }
+}
+
+void Polynomial::polyt1_unpack(const uint8_t *a) {
+    unsigned int i;
+  
+    for(i = 0; i < N/4; ++i) {
+      this->_coeffs[4*i+0] = ((a[5*i+0] >> 0) | ((uint32_t)a[5*i+1] << 8)) & 0x3FF;
+      this->_coeffs[4*i+1] = ((a[5*i+1] >> 2) | ((uint32_t)a[5*i+2] << 6)) & 0x3FF;
+      this->_coeffs[4*i+2] = ((a[5*i+2] >> 4) | ((uint32_t)a[5*i+3] << 4)) & 0x3FF;
+      this->_coeffs[4*i+3] = ((a[5*i+3] >> 6) | ((uint32_t)a[5*i+4] << 2)) & 0x3FF;
+    }
+}
+
+void Polynomial::polyt0_pack(uint8_t* buf) {
+    size_t i;
+    uint32_t temp[8] = {0};
+
+    for(i = 0; i < N/8; ++i) {
+        temp[0] = (1 << (D-1)) - this->_coeffs[8*i+0];
+        temp[1] = (1 << (D-1)) - this->_coeffs[8*i+1];
+        temp[2] = (1 << (D-1)) - this->_coeffs[8*i+2];
+        temp[3] = (1 << (D-1)) - this->_coeffs[8*i+3];
+        temp[4] = (1 << (D-1)) - this->_coeffs[8*i+4];
+        temp[5] = (1 << (D-1)) - this->_coeffs[8*i+5];
+        temp[6] = (1 << (D-1)) - this->_coeffs[8*i+6];
+        temp[7] = (1 << (D-1)) - this->_coeffs[8*i+7];
+    
+        buf[13*i+ 0]  =  temp[0];
+        buf[13*i+ 1]  =  temp[0] >>  8;
+        buf[13*i+ 1] |=  temp[1] <<  5;
+        buf[13*i+ 2]  =  temp[1] >>  3;
+        buf[13*i+ 3]  =  temp[1] >> 11;
+        buf[13*i+ 3] |=  temp[2] <<  2;
+        buf[13*i+ 4]  =  temp[2] >>  6;
+        buf[13*i+ 4] |=  temp[3] <<  7;
+        buf[13*i+ 5]  =  temp[3] >>  1;
+        buf[13*i+ 6]  =  temp[3] >>  9;
+        buf[13*i+ 6] |=  temp[4] <<  4;
+        buf[13*i+ 7]  =  temp[4] >>  4;
+        buf[13*i+ 8]  =  temp[4] >> 12;
+        buf[13*i+ 8] |=  temp[5] <<  1;
+        buf[13*i+ 9]  =  temp[5] >>  7;
+        buf[13*i+ 9] |=  temp[6] <<  6;
+        buf[13*i+10]  =  temp[6] >>  2;
+        buf[13*i+11]  =  temp[6] >> 10;
+        buf[13*i+11] |=  temp[7] <<  3;
+        buf[13*i+12]  =  temp[7] >>  5;
+      }
+}
+
+void Polynomial::polyt0_unpack(const uint8_t* a) {
+    size_t i;
+  
+    for(i = 0; i < N/8; ++i) {
+      this->_coeffs[8*i+0]  = a[13*i+0];
+      this->_coeffs[8*i+0] |= (uint32_t)a[13*i+1] << 8;
+      this->_coeffs[8*i+0] &= 0x1FFF;
+  
+      this->_coeffs[8*i+1]  = a[13*i+1] >> 5;
+      this->_coeffs[8*i+1] |= (uint32_t)a[13*i+2] << 3;
+      this->_coeffs[8*i+1] |= (uint32_t)a[13*i+3] << 11;
+      this->_coeffs[8*i+1] &= 0x1FFF;
+  
+      this->_coeffs[8*i+2]  = a[13*i+3] >> 2;
+      this->_coeffs[8*i+2] |= (uint32_t)a[13*i+4] << 6;
+      this->_coeffs[8*i+2] &= 0x1FFF;
+  
+      this->_coeffs[8*i+3]  = a[13*i+4] >> 7;
+      this->_coeffs[8*i+3] |= (uint32_t)a[13*i+5] << 1;
+      this->_coeffs[8*i+3] |= (uint32_t)a[13*i+6] << 9;
+      this->_coeffs[8*i+3] &= 0x1FFF;
+  
+      this->_coeffs[8*i+4]  = a[13*i+6] >> 4;
+      this->_coeffs[8*i+4] |= (uint32_t)a[13*i+7] << 4;
+      this->_coeffs[8*i+4] |= (uint32_t)a[13*i+8] << 12;
+      this->_coeffs[8*i+4] &= 0x1FFF;
+  
+      this->_coeffs[8*i+5]  = a[13*i+8] >> 1;
+      this->_coeffs[8*i+5] |= (uint32_t)a[13*i+9] << 7;
+      this->_coeffs[8*i+5] &= 0x1FFF;
+  
+      this->_coeffs[8*i+6]  = a[13*i+9] >> 6;
+      this->_coeffs[8*i+6] |= (uint32_t)a[13*i+10] << 2;
+      this->_coeffs[8*i+6] |= (uint32_t)a[13*i+11] << 10;
+      this->_coeffs[8*i+6] &= 0x1FFF;
+  
+      this->_coeffs[8*i+7]  = a[13*i+11] >> 3;
+      this->_coeffs[8*i+7] |= (uint32_t)a[13*i+12] << 5;
+      this->_coeffs[8*i+7] &= 0x1FFF;
+  
+      this->_coeffs[8*i+0] = (1 << (D-1)) - this->_coeffs[8*i+0];
+      this->_coeffs[8*i+1] = (1 << (D-1)) - this->_coeffs[8*i+1];
+      this->_coeffs[8*i+2] = (1 << (D-1)) - this->_coeffs[8*i+2];
+      this->_coeffs[8*i+3] = (1 << (D-1)) - this->_coeffs[8*i+3];
+      this->_coeffs[8*i+4] = (1 << (D-1)) - this->_coeffs[8*i+4];
+      this->_coeffs[8*i+5] = (1 << (D-1)) - this->_coeffs[8*i+5];
+      this->_coeffs[8*i+6] = (1 << (D-1)) - this->_coeffs[8*i+6];
+      this->_coeffs[8*i+7] = (1 << (D-1)) - this->_coeffs[8*i+7];
+    }
+}
+
+void Polynomial::polyz_pack(uint8_t* buf) {
+    unsigned int i;
+    uint32_t temp[4];
+    
+    if(GAMMA1 == (1 << 17)) { 
+        for(i = 0; i < N/4; ++i) {
+            temp[0] = GAMMA1 - this->_coeffs[4*i+0];
+            temp[1] = GAMMA1 - this->_coeffs[4*i+1];
+            temp[2] = GAMMA1 - this->_coeffs[4*i+2];
+            temp[3] = GAMMA1 - this->_coeffs[4*i+3];
+            
+            buf[9*i+0]  = temp[0];
+            buf[9*i+1]  = temp[0] >> 8;
+            buf[9*i+2]  = temp[0] >> 16;
+            buf[9*i+2] |= temp[1] << 2;
+            buf[9*i+3]  = temp[1] >> 6;
+            buf[9*i+4]  = temp[1] >> 14;
+            buf[9*i+4] |= temp[2] << 4;
+            buf[9*i+5]  = temp[2] >> 4;
+            buf[9*i+6]  = temp[2] >> 12;
+            buf[9*i+6] |= temp[3] << 6;
+            buf[9*i+7]  = temp[3] >> 2;
+            buf[9*i+8]  = temp[3] >> 10;
+        }
+    } else if (GAMMA1 == (1 << 19)) {
+        for(i = 0; i < N/2; ++i) {
+            temp[0] = GAMMA1 - this->_coeffs[2*i+0];
+            temp[1] = GAMMA1 - this->_coeffs[2*i+1];
+            
+            buf[5*i+0]  = temp[0];
+            buf[5*i+1]  = temp[0] >> 8;
+            buf[5*i+2]  = temp[0] >> 16;
+            buf[5*i+2] |= temp[1] << 4;
+            buf[5*i+3]  = temp[1] >> 4;
+            buf[5*i+4]  = temp[1] >> 12;
+        }
+    }
+}
+
+
+void Polynomial::polyw1_pack(uint8_t* buf) {
+    size_t i{0};
+    if (GAMMA2 == (Q-1)/88) {
+        for(i = 0; i < N/4; ++i) {
+            buf[3*i+0]  = this->_coeffs[4*i+0];
+            buf[3*i+0] |= this->_coeffs[4*i+1] << 6;
+            buf[3*i+1]  = this->_coeffs[4*i+1] >> 2;
+            buf[3*i+1] |= this->_coeffs[4*i+2] << 4;
+            buf[3*i+2]  = this->_coeffs[4*i+2] >> 4;
+            buf[3*i+2] |= this->_coeffs[4*i+3] << 2;
+        }
+    } else if (GAMMA2 == (Q-1)/32) {
+        for(i = 0; i < N/2; ++i)
+        buf[i] = this->_coeffs[2*i+0] | (this->_coeffs[2*i+1] << 4);
+    }
+}
 
 /**
  * @brief Correct the polynomial HightBits 
@@ -439,7 +793,7 @@ bool Polynomial::norm_check(int32_t bound) {
  * @param poly_right Second operator (must be the ntt domain)
  * @return Polynomial 
  */
-Polynomial Polynomial::ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& poly_right) {
+Polynomial ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& poly_right) {
     Polynomial returnPoly;
     if((poly_left.ntt_status == true) && (poly_right.ntt_status == true)) 
     {
