@@ -804,17 +804,19 @@ Polynomial ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& po
         for(size_t index = 0; index < N; index++) 
         {
             returnPoly._coeffs.at(index) = mldsa::utils::montgomery_reduce(
-                                        static_cast<int64_t>(poly_left._coeffs.at(index)) *
-                                        static_cast<int64_t>(poly_left._coeffs.at(index))
-                                    );
+                static_cast<int64_t>(poly_left._coeffs.at(index)) *
+                static_cast<int64_t>(poly_right._coeffs.at(index))
+            );
         }
     }
     else 
     {
+        std::cout << "WARING: Not in the NTT domain";
         throw std::logic_error("Muliplication not in NTT domain");
     }
     return returnPoly;
 }
+
 
 /**
  * @brief Reservation for the ntt_domain_multiply with the same feature
@@ -832,10 +834,15 @@ Polynomial& Polynomial::operator*=(const Polynomial& poly) {
     return *this;
 }
 
-Polynomial operator+(Polynomial poly_left, const Polynomial& poly_right) {
-    poly_left += poly_right;
-    return poly_left;
+Polynomial operator+(const Polynomial& poly_left, const Polynomial& poly_right) {
+    Polynomial result;
+    for(size_t index = 0; index < N; index++) {
+        /* note: there are no modular reduction */
+        result._coeffs[index] = poly_left._coeffs[index] + poly_right._coeffs[index]; 
+    }
+    return result;
 }
+
 
 Polynomial operator-(Polynomial poly_left, const Polynomial& poly_right) {
     poly_left -= poly_right;

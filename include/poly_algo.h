@@ -42,7 +42,7 @@ public:
     void reduced(void);
     void negative_add_Q(void);
     void shift_toleft_2D(void);
-
+    void poly_add(const Polynomial& poly);
     // decompose funtion
     void power2round(Polynomial& lowbits_poly, Polynomial& highbits_poly);
     void decompose(Polynomial& lowbits_poly, Polynomial& highbits_poly);
@@ -80,7 +80,7 @@ public:
     Polynomial& operator*=(const Polynomial& poly); // multiplting 2 polynomial in case of the monetegry
     
     // friend operator
-    friend Polynomial operator+(Polynomial poly_left, const Polynomial& poly_right);
+    friend Polynomial operator+(const Polynomial& poly_left, const Polynomial& poly_right);
     friend Polynomial operator-(Polynomial poly_left, const Polynomial& poly_right);
     friend Polynomial operator*(Polynomial poly_left, const Polynomial& poly_right);
 
