@@ -7,6 +7,7 @@ class PolyVector {
 private:
     std::array<Polynomial, Mm> _poly_vector;
     size_t _vector_size;
+    template<size_t M, size_t N> friend class PolyMatrix; // for making matrix can reed the internal properties
 public:
 
     /**
@@ -349,20 +350,11 @@ public:
      * @param rho Seed for generating
      */
     void expand(const std::array<uint8_t, SEEDBYTES>& rho) {
-
-        // For nonce bytes
-        uint16_t i{0};
-
-        for(PolyVector<Mm>& vector : this->_poly_matrix) {
-            // for nonce byte
-            uint16_t j{0};
-
-            for(Polynomial& poly : vector) {
+        for(size_t i = 0; i < Nm; i++) {
+            for(size_t j = 0; j < Mm; j++) {
                 // Uniform based on the Shake128 and the nonce byte
-                poly.polynomial_poly_uniform(rho, ((i << 8) + j));
-                j++;
+                this->_poly_matrix[i]._poly_vector[j].polynomial_poly_uniform(rho, ((i << 8) + j));
             }
-            i++;
         }
     }
 
@@ -393,6 +385,21 @@ public:
             );
         }
         return result;  // You were missing the return statement
+    }
+
+    friend std::ostream& operator<< (std::ostream& os, const PolyMatrix<Mm, Nm>& matrix) {
+        size_t i = 0;
+        for(const auto& vector : matrix._poly_matrix) { 
+            std::cout << "=============Rows[" << i << "]:===============\n";
+            std::cout << vector;
+            i++;
+        }
+        return os;
+    }
+    void fill(int32_t value) {
+        for(PolyVector<Mm> vector : this->_poly_matrix) {
+            vector.fill(value);
+        }
     }
 };
 
