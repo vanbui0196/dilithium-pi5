@@ -14,6 +14,7 @@ int main(void) {
 
     PolyMatrix<L,K> test_matrix;
     test_matrix.expand(seed_SEEDBYTES);
+
     std::cout << test_matrix;
     return 0;
 

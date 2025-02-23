@@ -922,6 +922,6 @@ std::ostream& operator<<(std::ostream& os, const Polynomial& poly)
     for(const auto& element : poly._coeffs) {
         os << element << " ";
     }
-    os << "\n=============================================================================================================\n\n";
+    os << "\n";
     return os;
 }

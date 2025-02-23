@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <iostream>
 #include "poly_algo.h"
 
 template <size_t Mm>
@@ -329,10 +330,10 @@ public:
 };
 
 /**
- * @brief Vector
+ * @brief MATRIX with the size of !!!Important: --->[Nm,Mm]<--- !!!Important | Not: ---> [Mm, Nm] <---
  * 
- * @tparam Mm This shall be equal to L
- * @tparam Nm 
+ * @tparam Mm This euqal to L in the matrix context
+ * @tparam Nm This equal to K in the matrix context
  */
 template <size_t Mm, size_t Nm>
 class PolyMatrix {
@@ -346,11 +347,13 @@ public:
 
     /**
      * @brief Expand the matrix based on the seed
-     * @status: not test est
+     * @status TESTED+WORKED
      * @param rho Seed for generating
      */
     void expand(const std::array<uint8_t, SEEDBYTES>& rho) {
+        #pragma omp parallel for
         for(size_t i = 0; i < Nm; i++) {
+            #pragma omp simd
             for(size_t j = 0; j < Mm; j++) {
                 // Uniform based on the Shake128 and the nonce byte
                 this->_poly_matrix[i]._poly_vector[j].polynomial_poly_uniform(rho, ((i << 8) + j));
@@ -390,7 +393,7 @@ public:
     friend std::ostream& operator<< (std::ostream& os, const PolyMatrix<Mm, Nm>& matrix) {
         size_t i = 0;
         for(const auto& vector : matrix._poly_matrix) { 
-            std::cout << "=============Rows[" << i << "]:===============\n";
+            std::cout << "\n========Rows[" << i << "]============\n";
             std::cout << vector;
             i++;
         }
