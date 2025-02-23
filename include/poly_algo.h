@@ -48,10 +48,10 @@ public:
     void decompose(Polynomial& lowbits_poly, Polynomial& highbits_poly);
 
     //hint related methods
-    uint32_t make_hint(Polynomial& hints_poly, const Polynomial& lowbits_poly,const Polynomial& highbits_poly);
-    void use_hint(Polynomial& corrected_poly, const Polynomial& highbits_poly, const Polynomial& hints_poly);
+    uint32_t make_hint(const Polynomial& lowbits_poly,const Polynomial& highbits_poly);
+    void use_hint(const Polynomial& highbits_poly, const Polynomial& hints_poly);
     //Polynomial ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& poly_right); -> implement with the friend function
-    bool norm_check(int32_t bound);
+    bool norm_check(int32_t bound) const;
 
     // polynomial uniform (from SHAKE function)
     void polynomial_poly_uniform(const std::array<uint8_t, SEEDBYTES>& seed, uint16_t nonce);
@@ -81,7 +81,7 @@ public:
     
     // friend operator
     friend Polynomial operator+(const Polynomial& poly_left, const Polynomial& poly_right);
-    friend Polynomial operator-(Polynomial poly_left, const Polynomial& poly_right);
+    friend Polynomial operator-(const Polynomial& poly_left, const Polynomial& poly_right);
     friend Polynomial operator*(Polynomial poly_left, const Polynomial& poly_right);
 
     //friend hint function

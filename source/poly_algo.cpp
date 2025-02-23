@@ -164,14 +164,14 @@ void Polynomial::decompose(Polynomial& lowbits_poly, Polynomial& highbits_poly) 
  * @param hints_poly Reference to the Hint polynoial
  * @return uint32_t 
  */
-uint32_t Polynomial::make_hint(Polynomial& hints_poly, const Polynomial& lowbits_poly,const Polynomial& highbits_poly) {
+uint32_t Polynomial::make_hint(const Polynomial& lowbits_poly,const Polynomial& highbits_poly) {
     // Calculate the total hints
     uint32_t sum  = 0;
     for(auto i = 0; i < N; i++) {
         // Update the hint poly cast the value to the int32_t for safe handling
-        hints_poly._coeffs.at(i) = static_cast<int32_t>(mldsa::utils::make_hint(lowbits_poly._coeffs.at(i), highbits_poly._coeffs.at(i)));
+        this->_coeffs.at(i) = static_cast<int32_t>(mldsa::utils::make_hint(lowbits_poly._coeffs.at(i), highbits_poly._coeffs.at(i)));
         // Return the total hints
-        sum = sum + hints_poly._coeffs.at(i);
+        sum = sum + this->_coeffs.at(i);
     }
     return sum;
 }
@@ -705,9 +705,9 @@ void Polynomial::polyw1_pack(uint8_t* buf) {
  * @param highbits_poly Current HighBits polynomial
  * @param hints_poly Hints
  */
-void Polynomial::use_hint(Polynomial& corrected_poly, const Polynomial& highbits_poly, const Polynomial& hints_poly) {
+void Polynomial::use_hint(const Polynomial& highbits_poly, const Polynomial& hints_poly) {
     for(auto i = 0; i < N; i++) {
-        corrected_poly._coeffs.at(i) = mldsa::utils::use_hint(highbits_poly._coeffs.at(i), 
+        this->_coeffs.at(i) = mldsa::utils::use_hint(highbits_poly._coeffs.at(i), 
                                                               hints_poly._coeffs.at(i));
     }
 }
@@ -761,7 +761,7 @@ Polynomial& Polynomial::operator-=(const Polynomial& poly) {
  * @return true 
  * @return false 
  */
-bool Polynomial::norm_check(int32_t bound) { 
+bool Polynomial::norm_check(int32_t bound) const { 
     
     // local variable
     bool retVal = false; // retval
@@ -844,10 +844,15 @@ Polynomial operator+(const Polynomial& poly_left, const Polynomial& poly_right) 
 }
 
 
-Polynomial operator-(Polynomial poly_left, const Polynomial& poly_right) {
-    poly_left -= poly_right;
-    return poly_left;
+Polynomial operator-(const Polynomial& poly_left, const Polynomial& poly_right) {
+    Polynomial result;
+    for(size_t index = 0; index < N; index++) {
+        /* note: there are no modular reduction */
+        result._coeffs[index] = poly_left._coeffs[index] - poly_right._coeffs[index]; 
+    }
+    return result;
 }
+
 
 /**
  * @brief Convert the polynomials into the ntt domain for multiplication
