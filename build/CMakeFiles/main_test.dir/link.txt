@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/main_test.dir/test/main.cpp.o -o main_test  libdilithium.a 

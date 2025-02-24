@@ -1,0 +1,7 @@
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/dilithium.dir
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/main_test.dir
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/poly_algo_test.dir
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/poly_vector_test.dir
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/test.dir
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/edit_cache.dir
+/home/vanbu/Desktop/dilithium-pi5/build/CMakeFiles/rebuild_cache.dir

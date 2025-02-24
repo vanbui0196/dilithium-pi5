@@ -12,7 +12,6 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
-#include "ntt.h"
 #include "utils.h"
 
 extern "C" {
