@@ -793,27 +793,21 @@ bool Polynomial::norm_check(int32_t bound) const {
  * @param poly_right Second operator (must be the ntt domain)
  * @return Polynomial 
  */
-Polynomial ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& poly_right) {
+ Polynomial ntt_domain_multiply(const Polynomial& poly_left, const Polynomial& poly_right) {
     Polynomial returnPoly;
-    if((poly_left.ntt_status == true) && (poly_right.ntt_status == true)) 
+    
+    // the return result must be in the ntt domain
+    returnPoly.ntt_status = true;
+    
+    // calculate the coefficient
+    for(size_t index = 0; index < N; index++) 
     {
-        // the return result must be in the ntt domain
-        returnPoly.ntt_status = true;
-
-        // calculate the coefficient
-        for(size_t index = 0; index < N; index++) 
-        {
-            returnPoly._coeffs.at(index) = mldsa::utils::montgomery_reduce(
-                static_cast<int64_t>(poly_left._coeffs.at(index)) *
-                static_cast<int64_t>(poly_right._coeffs.at(index))
-            );
-        }
+        returnPoly._coeffs.at(index) = mldsa::utils::montgomery_reduce(
+            static_cast<int64_t>(poly_left._coeffs.at(index)) *
+            static_cast<int64_t>(poly_right._coeffs.at(index))
+        );
     }
-    else 
-    {
-        std::cout << "WARING: Not in the NTT domain";
-        throw std::logic_error("Muliplication not in NTT domain");
-    }
+    
     return returnPoly;
 }
 

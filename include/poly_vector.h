@@ -3,12 +3,16 @@
 #include <iostream>
 #include "poly_algo.h"
 
+// Forward declaration of PolyMatrix
+template<size_t M, size_t N> class PolyMatrix;
+
 template <size_t Mm>
 class PolyVector {
 private:
     std::array<Polynomial, Mm> _poly_vector;
     size_t _vector_size;
     template<size_t M, size_t N> friend class PolyMatrix; // for making matrix can reed the internal properties
+    template<size_t M, size_t N> friend PolyVector<N> matrix_multiply(const PolyMatrix<M, N>&, const PolyVector<M>&);
 public:
 
     /**
@@ -20,8 +24,18 @@ public:
     }
 
     /**
-     * @brief Uniform the vector with the value of
+     * @brief This BRIDGE will be removed soon. Un-wanted method
      * 
+     * @param index 
+     * @return Polynomial& 
+     */
+    Polynomial& access_poly_at(size_t index) {
+        return _poly_vector.at(index);
+    }
+
+    /**
+     * @brief Uniform the vector with the value of
+     * @status 
      * @param seed 
      * @param nonce 
      */
@@ -307,12 +321,12 @@ public:
 
     /**
      * @brief Pack the poly of the w1 into the buffer;
-     * 
+     * @status TESTED
      * @param buf Buffer for packaging
      */
-    void vector_packw1(uint8_t* buf) const {
-        for(Polynomial& element : this->_poly_vector) {
-            element.polyw1_pack(buf);
+    void vector_packw1(uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyw1_pack(&buf[i*POLYW1_PACKEDBYTES]);
         }
     }
     /**
@@ -347,7 +361,7 @@ public:
 
     /**
      * @brief Expand the matrix based on the seed
-     * @status TESTED+WORKED
+     * @status TESTED
      * @param rho Seed for generating
      */
     void expand(const std::array<uint8_t, SEEDBYTES>& rho) {
@@ -374,7 +388,7 @@ public:
 
     /**
      * @brief Matrix multiplication [Nm, Mm] * [Mm, 1]= [Nm, 1]
-     * @status: not tested
+     * @status: TESTED
      * @param matrix 
      * @param vector 
      * @return PolyVector<Nm> 
@@ -383,7 +397,7 @@ public:
         PolyVector<Nm> result;
         #pragma omp parallel for simd
         for(size_t i = 0; i < Nm; i++) {
-            result._poly_vector.at(i) = vector_pointwise_multiply_accumulate(
+            result.access_poly_at(i) = vector_pointwise_multiply_accumulate(
                 matrix._poly_matrix.at(i), vector
             );
         }
