@@ -4,48 +4,48 @@
 #include <cstdint>
 
 // Common constant for the dilithium
-constexpr uint32_t SEEDBYTES = 32;
-constexpr uint32_t CRHBYTES = 64;
-constexpr uint32_t TRBYTES = 64;
-constexpr uint32_t RNDBYTES = 32;
-constexpr uint32_t N = 256;
-constexpr uint32_t Q = 8380417;
-constexpr uint32_t D = 13;
-constexpr uint32_t ROOT_OF_UNITY = 1753;
+constexpr int64_t SEEDBYTES = 32;
+constexpr int64_t CRHBYTES = 64;
+constexpr int64_t TRBYTES = 64;
+constexpr int64_t RNDBYTES = 32;
+constexpr int64_t N = 256;
+constexpr int64_t Q = 8380417;
+constexpr int64_t D = 13;
+constexpr int64_t ROOT_OF_UNITY = 1753;
 #define MONT -4186625 // 2^32 % Q
 #define QINV 58728449 // q^(-1) mod 2^32
 
 // Mode-specific parameters
 #if DILITHIUM_MODE == 2
-    constexpr uint32_t K = 4;
-    constexpr uint32_t L = 4;
-    constexpr uint32_t ETA = 2;
-    constexpr uint32_t TAU = 39;
-    constexpr uint32_t BETA = 78;
-    constexpr uint32_t GAMMA1 = (1 << 17);
-    constexpr uint32_t GAMMA2 = ((Q-1)/88);
-    constexpr uint32_t OMEGA = 80;
-    constexpr uint32_t CTILDEBYTES = 32;
+    constexpr int64_t K = 4;
+    constexpr int64_t L = 4;
+    constexpr int64_t ETA = 2;
+    constexpr int64_t TAU = 39;
+    constexpr int64_t BETA = 78;
+    constexpr int64_t GAMMA1 = (1 << 17);
+    constexpr int64_t GAMMA2 = ((Q-1)/88);
+    constexpr int64_t OMEGA = 80;
+    constexpr int64_t CTILDEBYTES = 32;
 #elif DILITHIUM_MODE == 3
-    constexpr uint32_t K = 6;
-    constexpr uint32_t L = 5;
-    constexpr uint32_t ETA = 4;
-    constexpr uint32_t TAU = 49;
-    constexpr uint32_t BETA = 196;
-    constexpr uint32_t GAMMA1 = (1 << 19);
-    constexpr uint32_t GAMMA2 = ((Q-1)/32);
-    constexpr uint32_t OMEGA = 55;
-    constexpr uint32_t CTILDEBYTES = 48;
+    constexpr int64_t K = 6;
+    constexpr int64_t L = 5;
+    constexpr int64_t ETA = 4;
+    constexpr int64_t TAU = 49;
+    constexpr int64_t BETA = 196;
+    constexpr int64_t GAMMA1 = (1 << 19);
+    constexpr int64_t GAMMA2 = ((Q-1)/32);
+    constexpr int64_t OMEGA = 55;
+    constexpr int64_t CTILDEBYTES = 48;
 #elif DILITHIUM_MODE == 5
-    constexpr uint32_t K = 8;
-    constexpr uint32_t L = 7;
-    constexpr uint32_t ETA = 2;
-    constexpr uint32_t TAU = 60;
-    constexpr uint32_t BETA = 120;
-    constexpr uint32_t GAMMA1 = (1 << 19);
-    constexpr uint32_t GAMMA2 = ((Q-1)/32);
-    constexpr uint32_t OMEGA = 75;
-    constexpr uint32_t CTILDEBYTES = 64;
+    constexpr int64_t K = 8;
+    constexpr int64_t L = 7;
+    constexpr int64_t ETA = 2;
+    constexpr int64_t TAU = 60;
+    constexpr int64_t BETA = 120;
+    constexpr int64_t GAMMA1 = (1 << 19);
+    constexpr int64_t GAMMA2 = ((Q-1)/32);
+    constexpr int64_t OMEGA = 75;
+    constexpr int64_t CTILDEBYTES = 64;
 #endif
 
 

@@ -344,7 +344,7 @@ void Polynomial::polynomial_uniform_eta(const std::array<uint8_t, CRHBYTES>& see
     // handle the defekt case (Rare case)
     while(ctr < N) {
         shake256_squeezeblocks(buf, 1, &state);
-        ctr += this->_coefficient_from_halfbyte(this->_coeffs.data(), N - ctr, buf, mldsa::stream_function::STREAM256_BLOCKBYTES);
+        ctr += this->_coefficient_from_halfbyte(this->_coeffs.data() + ctr, N - ctr, buf, mldsa::stream_function::STREAM256_BLOCKBYTES);
     }
 }
 
@@ -914,7 +914,7 @@ void Polynomial::invNTT() {
 std::ostream& operator<<(std::ostream& os, const Polynomial& poly)
 {
     for(const auto& element : poly._coeffs) {
-        os << element << " ";
+        os << (int)element << " ";
     }
     os << "\n";
     return os;

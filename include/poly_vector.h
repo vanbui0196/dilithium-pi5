@@ -33,27 +33,39 @@ public:
         return _poly_vector.at(index);
     }
 
+    // Non-const iterators
+    // auto begin() { return _vector_size.begin(); }
+    // auto end() { return _vector_size.end(); }
+    
+    // // Const iterators
+    // auto begin() const { return _vector_size.begin(); }
+    // auto end() const { return _vector_size.end(); }
+    
+    // // Optional but recommended: const iterators via non-const object
+    // auto cbegin() const { return _vector_size.cbegin(); }
+    // auto cend() const { return _vector_size.cend(); }
+
     /**
      * @brief Uniform the vector with the value of
-     * @status 
+     * @status tested
      * @param seed 
      * @param nonce 
      */
     void vector_uniform_eta(const std::array<uint8_t, CRHBYTES>& seed, uint16_t nonce) {
-        for(auto ctr = 0; ctr < this->_vector_size; ctr++) {
+        for(auto ctr = 0; ctr < Mm; ctr++) {
             this->_poly_vector.at(ctr).polynomial_uniform_eta(seed, nonce++);
         }
     }
     
     /**
      * @brief Uniform vector in the gamma range
-     * 
+     * @status tested
      * @param seed Seed for Shake function
      * @param nonce Nonce byte
      */
     void vector_uniform_gamma1(const std::array<uint8_t, CRHBYTES>& seed, uint16_t nonce) {
-        for(auto ctr = 0; ctr < this->_vector_size; ctr++) {
-            this->_poly_vector.at(ctr).polynomial_uniform_eta(seed, nonce++);
+        for(auto ctr = 0; ctr < Mm; ctr++) {
+            this->_poly_vector.at(ctr).polynomial_uniform_gamma1(seed, Mm * nonce + ctr);
         }
     }
 
@@ -69,7 +81,7 @@ public:
 
     /**
      * @brief Add two two Poly vector together (return by value)
-     * @status not-tested
+     * @status TESTED
      * @param a First Vector
      * @param b Second Vector
      * @return PolyVector<Mm> 
@@ -86,7 +98,7 @@ public:
 
         /**
      * @brief Substract two Poly vector (return by value)
-     * @status not-tested
+     * @status TESTED
      * @param a First Vector
      * @param b Second Vector
      * @return PolyVector<Mm> 
@@ -123,7 +135,8 @@ public:
 
     /**
      * @brief Perform the pointwise polynomial in the NTT domain. Return by value
-     * @status: tested
+     * @ref polyveck_pointwise_poly_montgomery
+     * @status: tested 
      * @param a First operand
      * @param b Second operand
      * @return PolyVector<Mm> Poly that contain the pointwise multiplication
@@ -138,7 +151,7 @@ public:
 
     /**
      * @brief Multiply in the NTT domain. Return by the reference
-     * @status not-tested
+     * @status TESTED
      * @param result Reference return
      * @param a Poly a
      * @param b Poly b
@@ -151,7 +164,7 @@ public:
 
     /**
      * @brief Vector multiply in the NTT domain (return by value)
-     * status: not-tested
+     * status: TESTED
      * @param a First operand
      * @param b Second operand
      * @return Polynomial Return by value
@@ -189,14 +202,14 @@ public:
 
     /**
      * @brief Check if the norm is larger than expected
-     * @status not-tested
+     * @status TESTED
      * @param bound Bound for the validation
      * @return true Bound constraint is not valid
      * @return false Good coefficient
      */
     bool vector_checknorm(int32_t bound) const {
         bool retVal = false;
-        for(Polynomial& element : this->_poly_vector) {
+        for(const Polynomial& element : this->_poly_vector) {
             if(element.norm_check(bound)) {
                 retVal = true;
                 break;
@@ -207,7 +220,7 @@ public:
 
     /**
      * @brief Add the value of the Q in case of the negative
-     * @status not-tested
+     * @status tested
      */
     void vector_caddq(void) {
         for(Polynomial& element : this->_poly_vector) {
@@ -217,7 +230,7 @@ public:
 
     /**
      * @brief Shift all the coefficient in the vector to left 2^D element
-     * @status not-tested
+     * @status tested
      */
     void vector_shiftl(void) {
         for(Polynomial& element : this->_poly_vector) {
@@ -227,7 +240,7 @@ public:
 
     /**
      * @brief Split the vector of Power2Round (2^D)
-     * @status not-tested
+     * @status TESTED
      * @param vector_highbits HighBits reference vector
      * @param vector_lowbits LowBits reference vector
      */
@@ -240,7 +253,7 @@ public:
 
     /**
      * @brief Split the vector into 2 part with the factor of 2*GAMMA2
-     * @ status not-tested
+     * @ status tested
      * 
      * @param vector_highbits HighBits vector reference
      * @param vector_lowbits LowBits vector reference
@@ -254,7 +267,7 @@ public:
 
     /**
      * @brief Friend function: Make hints for Sig verification (with input of HighBits and LowBits) with reference parameter
-     * @status not-tested
+     * @status TESTED
      * @param vector_hints reference to the Hints Vector
      * @param vector_lowbits (constant) reference to 
      * @param vector_highbits 
@@ -275,7 +288,7 @@ public:
 
     /**
      * @brief (Method based) Make hint based for Sig verification 
-     * @status not-tested
+     * @status TESTED
      * @param vector_lowbits Vector that contain LowBits
      * @param vector_highbits Vector that contain HighBits 
      * @return uint32_t Total hint that needed
@@ -293,7 +306,7 @@ public:
 
     /**
      * @brief (Friend function) Use hint and update the correct vector
-     * @status not-tested
+     * @status TESTED
      * @param vector_corrected HighBits vector with corrected value
      * @param vector_highbits Input highbits for checking
      * @param vector_hints Hint vector
@@ -309,7 +322,7 @@ public:
     
     /**
      * @brief (Method based) Use hint and update corrected vector (object attribute)
-     * @status not-tested
+     * @status tested
      * @param vector_highbits HighBits needed for correction
      * @param vector_hints Hints for the correction
      */

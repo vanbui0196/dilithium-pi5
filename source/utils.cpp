@@ -6,8 +6,8 @@
  * @date 2025-02-10
  * 
  */
-#include "utils.h"
-
+ #include "utils.h"
+ #include <iostream>
 namespace mldsa
 {
     namespace utils {
@@ -95,7 +95,7 @@ namespace mldsa
          */
         std::pair<int32_t, int32_t> decompose(int32_t a) {
             // return the value 
-            int32_t a1, a0;
+            int32_t a1{0}, a0{0};
 
             // calculate the HighBits
             a1  = (a + 127) >> 7;
@@ -113,8 +113,12 @@ namespace mldsa
             
             // calculate the LowBits
             a0  = a - a1*2*GAMMA2;
-            a0 -= (((Q-1)/2 - a0) >> 31) & Q;
 
+            // Quite not optimized here since some step in C can not copy directly into the C++ code
+            int32_t condition = (Q-1)/2 - a0;
+            int32_t shifted = condition >> 31;
+            int32_t masked = shifted & Q;
+            a0 -= masked;
             // Return the a1 and the a0
             return {a0, a1};
         }
@@ -130,7 +134,7 @@ namespace mldsa
             
             // return value
             uint32_t retVal = 0;
-            if(a0 > GAMMA2 || a0 < -GAMMA2 || (a0 == -GAMMA2 && a1 != 0)) {
+            if((a0 > GAMMA2) || (a0 < -GAMMA2) || (a0 == -GAMMA2 && a1 != 0)) {
                 retVal =  1;
             }
             return retVal;
