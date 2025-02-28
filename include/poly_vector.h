@@ -389,6 +389,24 @@ public:
         }
     }
 
+    void vector_packt0(uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyt0_pack(&buf[i*POLYT0_PACKEDBYTES]);
+        }
+    }
+
+    /**
+     * @brief Pack the vector with the eta size
+     * 
+     * @param buf Pointer to the buffer
+     */
+    void vector_packeta(uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyeta_pack(&buf[i*POLYETA_PACKEDBYTES]);
+        }
+    }
+    
+
     /**
      * @brief Fill for testing purpose
      * 

@@ -70,11 +70,10 @@ void MLDSA::KeyGen(bool testmode) {
     this->pkEncode(rho); // tested -> pk
 
     // compute the tr for the private key
-    shake256(tr.data(), TRBYTES, this->public_key.data(), CRYPTO_PUBLICKEYBYTES);
+    shake256(tr.data(), TRBYTES, this->public_key.data(), CRYPTO_PUBLICKEYBYTES); // tested
 
-    for(int i = 0; i< TRBYTES; i++) {
-        std::cout << (int)tr.at(i) << " ";
-    } std::cout << std::endl;
+    // pack the secret key
+    this->skEncode(rho, tr, key); // tested
 
 }
 
@@ -88,4 +87,35 @@ void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho) {
 
     // pack the vector to the buffer
     this->_t1.vector_packt1(this->public_key.data() + SEEDBYTES);
+}
+
+void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho, 
+    const std::array<uint8_t, TRBYTES>& tr, 
+    const std::array<uint8_t, SEEDBYTES>& key) 
+{
+    size_t adding_pos{0};
+    // copy the data from rho in to secret key
+    std::copy(rho.begin(),rho.end(), this->secret_key.begin() + adding_pos);
+    adding_pos += SEEDBYTES;
+
+    // copy the data from key in secret key buffer
+    std::copy(key.begin(),key.end(), this->secret_key.begin() + adding_pos);
+    adding_pos+= SEEDBYTES;
+
+    // copy the data from tr (hash of the public key) in to secret key
+    std::copy(tr.begin(),tr.end(), this->secret_key.begin() + adding_pos);
+    adding_pos+= TRBYTES;
+
+    // pack s1 -> secret key buffer (L size)
+    this->_s1.vector_packeta(this->secret_key.begin() + adding_pos);
+    adding_pos += L * POLYETA_PACKEDBYTES;
+
+    // pack s2 -> secret key buffer (K size)
+    this->_s2.vector_packeta(this->secret_key.begin() + adding_pos);
+    adding_pos += K * POLYETA_PACKEDBYTES;
+
+    // pack t0 into buffer
+    this->_t0.vector_packt0(this->secret_key.begin() + adding_pos);
+    adding_pos += K * POLYT0_PACKEDBYTES; // this does not has any purpose
+
 }
