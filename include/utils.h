@@ -5,7 +5,7 @@
 #include <vector>
 #include <array>
 #include <utility>
-
+#include <stddef.h>
 
 namespace mldsa {
 namespace utils {
@@ -17,5 +17,6 @@ namespace utils {
     std::pair<int32_t, int32_t> decompose(int32_t a);
     uint32_t make_hint(int32_t a1, int32_t a0);
     int32_t use_hint(int32_t a, uint32_t hint);
+    bool get_random_bytes(uint8_t* buffer, size_t length);
 }
 }

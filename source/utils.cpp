@@ -8,6 +8,10 @@
  */
  #include "utils.h"
  #include <iostream>
+ #include <cstdint>
+ #include <fcntl.h>
+ #include <unistd.h>
+
 namespace mldsa
 {
     namespace utils {
@@ -173,6 +177,19 @@ namespace mldsa
                 return (a1 ==  0) ? 43 : a1 - 1;
             }
         }
+    }
+
+    bool get_random_bytes(uint8_t* buffer, size_t length) {
+        // use the urandom since it better
+        int random_fd = open("/dev/urandom", O_RDONLY);
+        if (random_fd < 0) {
+            return false; // Failed to open /dev/urandom
+        }
+        
+        ssize_t result = read(random_fd, buffer, length);
+        close(random_fd);
+        
+        return (result == static_cast<ssize_t>(length)); // Return true if we read the expected number of bytes
     }
 }
     

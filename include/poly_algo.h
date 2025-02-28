@@ -78,6 +78,10 @@ public:
     Polynomial& operator+=(const Polynomial& poly); // adding 2 polynomials (!!! no Q reduction)
     Polynomial& operator-=(const Polynomial& poly); // substracting 2 polynomials
     Polynomial& operator*=(const Polynomial& poly); // multiplting 2 polynomial in case of the monetegry
+
+    // copy constructor
+    Polynomial(const Polynomial& other); // Copy constructor
+    Polynomial& operator=(const Polynomial& other); // Copy assignment operator
     
     // friend operator
     friend Polynomial operator+(const Polynomial& poly_left, const Polynomial& poly_right);

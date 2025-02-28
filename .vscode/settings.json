@@ -51,6 +51,7 @@
         "sstream": "cpp",
         "stop_token": "cpp",
         "thread": "cpp",
-        "*.tpp": "cpp"
+        "*.tpp": "cpp",
+        "cstring": "cpp"
     }
 }

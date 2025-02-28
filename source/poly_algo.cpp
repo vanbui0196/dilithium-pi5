@@ -906,6 +906,36 @@ void Polynomial::invNTT() {
     this->ntt_status = false;
   }
 
+/**
+ * @brief Copy constructor for deep copying
+ * 
+ * @param other The polynomial to copy from
+ */
+Polynomial::Polynomial(const Polynomial& other) : ntt_status(other.ntt_status) {
+    // Copy the coefficients array
+    this->_coeffs = other._coeffs;
+}
+
+/**
+ * @brief Copy assignment operator for deep copying
+ * 
+ * @param other The polynomial to copy from
+ * @return Polynomial& Reference to this object
+ */
+Polynomial& Polynomial::operator=(const Polynomial& other) {
+    // Self-assignment check
+    if (this == &other) {
+        return *this;
+    }
+    
+    // Copy the data
+    this->_coeffs = other._coeffs;
+    this->ntt_status = other.ntt_status;
+    
+    return *this;
+}
+
+
 /***************************************************************************************
  * 
  *      TESTING ZONE

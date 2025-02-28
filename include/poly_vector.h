@@ -33,6 +33,41 @@ public:
         return _poly_vector.at(index);
     }
 
+    /**
+     * @brief Copy constructor for deep copying
+     * 
+     * @param other The PolyVector to copy from
+     */
+    PolyVector(const PolyVector<Mm>& other) : _vector_size(other._vector_size) {
+        // Deep copy each polynomial in the vector
+        for (size_t i = 0; i < Mm; i++) {
+            this->_poly_vector[i] = other._poly_vector[i];
+        }
+    }
+
+    /**
+     * @brief Copy assignment operator for deep copying
+     * 
+     * @param other The PolyVector to copy from
+     * @return PolyVector<Mm>& Reference to this object
+     */
+    PolyVector<Mm>& operator=(const PolyVector<Mm>& other) {
+        // Self-assignment check
+        if (this == &other) {
+            return *this;
+        }
+        
+        // Copy the size
+        this->_vector_size = other._vector_size;
+        
+        // Deep copy each polynomial in the vector
+        for (size_t i = 0; i < Mm; i++) {
+            this->_poly_vector[i] = other._poly_vector[i];
+        }
+        
+        return *this;
+    }
+
     // Non-const iterators
     // auto begin() { return _vector_size.begin(); }
     // auto end() { return _vector_size.end(); }
@@ -342,6 +377,18 @@ public:
             this->_poly_vector.at(i).polyw1_pack(&buf[i*POLYW1_PACKEDBYTES]);
         }
     }
+
+    /**
+     * @brief Pack t1 into the buffer
+     * 
+     * @param buf Pointer to the buffer
+     */
+    void vector_packt1(uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyt1_pack(&buf[i*POLYT1_PACKEDBYTES]);
+        }
+    }
+
     /**
      * @brief Fill for testing purpose
      * 
@@ -372,6 +419,42 @@ public:
 
     explicit PolyMatrix() : size_row{Mm}, size_colum{Nm} {}
 
+    /**
+    * @brief Copy constructor for deep copying
+    * 
+    * @param other The PolyMatrix to copy from
+    */
+    PolyMatrix(const PolyMatrix<Mm, Nm>& other) : 
+    size_row(other.size_row), size_colum(other.size_colum) {
+        // Deep copy each PolyVector in the matrix
+        for (size_t i = 0; i < Nm; i++) {
+            this->_poly_matrix[i] = other._poly_matrix[i];
+        }
+    }
+
+    /**
+    * @brief Copy assignment operator for deep copying
+    * 
+    * @param other The PolyMatrix to copy from
+    * @return PolyMatrix<Mm, Nm>& Reference to this object
+    */
+    PolyMatrix<Mm, Nm>& operator=(const PolyMatrix<Mm, Nm>& other) {
+        // Self-assignment check
+        if (this == &other) {
+            return *this;
+        }
+        
+        // Copy the dimensions
+        this->size_row = other.size_row;
+        this->size_colum = other.size_colum;
+        
+        // Deep copy each PolyVector in the matrix
+        for (size_t i = 0; i < Nm; i++) {
+            this->_poly_matrix[i] = other._poly_matrix[i];
+        }
+        
+        return *this;
+    }
     /**
      * @brief Expand the matrix based on the seed
      * @status TESTED

@@ -17,6 +17,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include
 
 # Set the source file
 set(SOURCES
+    source/mldsa.cpp
     source/poly_algo.cpp
     source/utils.cpp
     ref/source/stream.cpp
@@ -37,10 +38,15 @@ add_executable(poly_vector_test
     test/test_poly_vector.cpp
 )
 
+add_executable(sig_test
+    test/test_signature.cpp
+)
+
 # Link the test executable with the library
 target_link_libraries(main_test PRIVATE dilithium)
 target_link_libraries(poly_algo_test PRIVATE dilithium)
 target_link_libraries(poly_vector_test PRIVATE dilithium)
+target_link_libraries(sig_test PRIVATE dilithium)
 
 # Add a custom command to run the test and capture output
 add_custom_command(
