@@ -10,4 +10,7 @@ int main() {
 
     data.Sign(&SignMessage[0], &SignMessageLength, reinterpret_cast<const uint8_t*>(Mesage.c_str()), MessageLength, NULL, 0, data.secret_key);
 
+    for(size_t i = 0; i <SignMessageLength; i++) {
+        std::cout << "[" << i << "]: " <<(int)SignMessage[i] << "\n";
+    } std::cout << std::endl;
 }

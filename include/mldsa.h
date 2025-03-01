@@ -23,6 +23,7 @@ private:
     PolyVector<K> _s2;                      // Secret key vector
     PolyVector<K> _t0;                      // Secret key vector (low bits)
     PolyVector<L> _z;
+    PolyVector<L> _y;
     PolyVector<K> _h;
     bool test_mode;
 
@@ -47,7 +48,7 @@ public:
 
     void sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTES>& sample_in_ball_seed, 
         PolyVector<L>& z, 
-        PolyVector<K>& h) const;
+        PolyVector<K>& h);
 
     void KeyGen();
 

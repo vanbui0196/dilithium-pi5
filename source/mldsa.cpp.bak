@@ -272,8 +272,7 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
     PolyVector<K> t0; 
     PolyVector<L> s1; 
     PolyVector<K> s2;
-    PolyVector<L> y, z;
-    PolyVector<K> w, w1, w0, h;
+    PolyVector<K> w, w1, w0;
     
 
     // Local variable (Seed of Shake)
@@ -321,14 +320,14 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
     // Move to while statement since goto never a good ideas of handling
     while(false == valid_signature) {
         // Line 11 sample y
-        y.vector_uniform_gamma1(rhoprime, nonce++); // TESTED
+        this->_y.vector_uniform_gamma1(rhoprime, nonce++); // TESTED
 
         // store the vector z
-        z = y; /* deep copy */
-        z.vector_NTT();
+        this->_z = this->_y; /* deep copy */
+        this->_z.vector_NTT();
 
         /*Line 12 w = A * y  -> return w in polynomial domain */
-        w = matrix_multiply(A, z); // TESTED
+        w = matrix_multiply(A, this->_z); // TESTED
         w.vector_reduced();
         w.vector_invNTT();
         w.vector_caddq();
@@ -352,24 +351,24 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
         challengePoly.NTT();
 
         // Line 18 temporary z = <<c*s1>> = c * s1
-        vector_and_poly_pointwise_multiply(z, challengePoly, s1);
-        z.vector_invNTT();
+        vector_and_poly_pointwise_multiply(this->_z, challengePoly, s1);
+        this->_z.vector_invNTT();
 
         // Line 20 z = y + <<c*s1>> 
-        z = z + y;  // TESTED
-        z.vector_reduced();
+        this->_z = this->_z + this->_y;  // TESTED
+        this->_z.vector_reduced();
 
         // Line 23: check norm form GAMMA1 - BETA
-        if(z.vector_checknorm(GAMMA1 - BETA)) {
+        if(this->_z.vector_checknorm(GAMMA1 - BETA)) {
             continue;
         }
 
         // Line 19 temporary h = <<c*s2>> = c * s2
-        vector_and_poly_pointwise_multiply(h, challengePoly, s2);
-        h.vector_invNTT();
+        vector_and_poly_pointwise_multiply(this->_h, challengePoly, s2);
+        this->_h.vector_invNTT();
         
         // Line 21: r0 = LowBits(w - h) = LowBits(w - <<c*s2>>)
-        w0 = w0 - h; // w0 - <<c*s2>> Tested
+        w0 = w0 - this->_h; // w0 - <<c*s2>> Tested
         w0.vector_reduced(); // TESTED
 
         // Line 23: Check norm for GAMMA2 - BETA
@@ -379,17 +378,17 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
 
         // Line 25: Compute hint
         //h = <<c * t0>>
-        vector_and_poly_pointwise_multiply(h, challengePoly, t0);
-        h.vector_invNTT();
-        h.vector_reduced(); // h = <<c * t0>> TESTED
+        vector_and_poly_pointwise_multiply(this->_h, challengePoly, t0);
+        this->_h.vector_invNTT();
+        this->_h.vector_reduced(); // h = <<c * t0>> TESTED
 
         // Line 28: Check boundary for the hint
-        if(h.vector_checknorm(GAMMA2)) {
+        if(this->_h.vector_checknorm(GAMMA2)) {
             continue;
         }
         // Line 26
-        w0 = w0 + h; // w0 = w0 - <<c*s2>> +  <<c * t0>> // tested
-        total_hint = vector_make_hint(h, w0, w1); //tested
+        w0 = w0 + this->_h; // w0 = w0 - <<c*s2>> +  <<c * t0>> // tested
+        total_hint = vector_make_hint(this->_h, w0, w1); //tested
 
         if(total_hint > OMEGA) {
             continue;
@@ -399,21 +398,19 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
 
     } // end of sampling the y matix
     *SignMessageLength = CRYPTO_BYTES;
-    this->sigEncode(SignMessage,sample_in_ball_seed,z,h);
-
+    this->sigEncode(SignMessage, sample_in_ball_seed);
 }
 
-void MLDSA::sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTES>& sample_in_ball_seed, 
-    PolyVector<L>& z, 
-    PolyVector<K>& h) 
+void MLDSA::sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTES>& sample_in_ball_seed)
 {
+
     // Copy c̃ seed
     for(size_t i = 0; i < CTILDEBYTES; i++) {
         SignMessage[i] = sample_in_ball_seed.at(i);
     }
     SignMessage += CTILDEBYTES;
     
-    z.vector_packz(SignMessage);
+    this->_z.vector_packz(SignMessage);
     SignMessage += L*POLYZ_PACKEDBYTES;
 
     for(int i = 0; i < OMEGA + K; i++) {
@@ -423,11 +420,10 @@ void MLDSA::sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTE
     int k = 0;
     for(size_t i = 0; i < K; i++) {
         for(size_t j =0; j < N; j++) {
-            if(h.access_poly_at(i).get_value(j) != 0) {
+            if(this->_h.access_poly_at(i).get_value(j) != 0) {
                 SignMessage[k++] = j;
             }
         }
         SignMessage[OMEGA + i] = k;
     }
-
 }
