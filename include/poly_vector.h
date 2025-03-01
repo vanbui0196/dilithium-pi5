@@ -395,6 +395,12 @@ public:
         }
     }
 
+    void vector_unpackt0(const uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyt0_unpack(&buf[i*POLYT0_PACKEDBYTES]);
+        }
+    }
+
     /**
      * @brief Pack the vector with the eta size
      * 
@@ -403,6 +409,12 @@ public:
     void vector_packeta(uint8_t* buf){
         for(size_t i = 0; i < Mm; ++i) {
             this->_poly_vector.at(i).polyeta_pack(&buf[i*POLYETA_PACKEDBYTES]);
+        }
+    }
+
+    void vector_unpacketa(const uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyeta_unpack(&buf[i*POLYETA_PACKEDBYTES]);
         }
     }
     
