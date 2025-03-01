@@ -3,11 +3,11 @@
 int main() {
     MLDSA data(true);
     data.KeyGen();
-    std::array<uint8_t,SEEDBYTES> rho; 
-    std::array<uint8_t, TRBYTES> tr; 
-    std::array<uint8_t,SEEDBYTES> key;
-    PolyVector<K> t0; 
-    PolyVector<L> s1; 
-    PolyVector<K> s2;
-    data.skDecode(rho,tr,key, t0 ,s1,s2, data.secret_key);
+    uint8_t SignMessage[5000] = {0};
+    std::string Mesage = "Hello World";
+    size_t SignMessageLength;
+    size_t MessageLength = Mesage.length();
+
+    data.Sign(&SignMessage[0], &SignMessageLength, reinterpret_cast<const uint8_t*>(Mesage.c_str()), MessageLength, NULL, 0, data.secret_key);
+
 }

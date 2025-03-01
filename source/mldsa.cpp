@@ -88,6 +88,7 @@ void MLDSA::KeyGen() {
     // std::cout << "Vector s1: \n" << this->_s1;
     // std::cout << "Vector s2: \n" << this->_s2;
     // std::cout << "Vector t0: \n" << this->_t0;
+    
 
 }
 
@@ -143,6 +144,18 @@ void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho,
     this->_t0.vector_packt0(this->secret_key.begin() + adding_pos);
     adding_pos += K * POLYT0_PACKEDBYTES; // this does not has any purpose
 
+    // for(auto i = 0; i < rho.size(); i++) {
+    //     std::cout << (int)rho.at(i);
+    // } std::cout << std::endl;
+    // for(auto i = 0; i < tr.size(); i++) {
+    //     std::cout << (int)tr.at(i);
+    // } std::cout << std::endl;
+    // for(auto i = 0; i < key.size(); i++) {
+    //     std::cout << (int)key.at(i);
+    // } std::cout << std::endl;
+    // std::cout << "Vector s1: \n" << this->_s1;
+    // std::cout << "Vector s2: \n" << this->_s2;
+    // std::cout << "Vector t0: \n" << this->_t0;
 }
 
 /**
@@ -243,6 +256,15 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
     const uint8_t* Pre, size_t PreLenth, const std::array<uint8_t, RNDBYTES> randombuf, 
     const std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& secret_key) 
 {
+
+    // local variable
+    bool valid_signature{false};
+    uint16_t nonce{0};
+    uint32_t total_hint{0};
+
+    // Local matrix and vector
+    PolyMatrix<L, K> A;                       // Public matrix
+
     // Local variable (unpack key)
     std::array<uint8_t,SEEDBYTES> rho = {0}; 
     std::array<uint8_t, TRBYTES> tr = {0}; 
@@ -250,10 +272,14 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
     PolyVector<K> t0; 
     PolyVector<L> s1; 
     PolyVector<K> s2;
+    PolyVector<L> y, z;
+    PolyVector<K> w, w1, w0, h;
+    
 
     // Local variable (Seed of Shake)
     std::array<uint8_t, CRHBYTES> mu{0};        // µ
     std::array<uint8_t, CRHBYTES> rhoprime{0};  // ϱ"
+    std::array<uint8_t, CTILDEBYTES> sample_in_ball_seed;    // seed for the sample in ball function
 
     // Local variable (sample in ball)
     Polynomial challengePoly;                   // c̃
@@ -261,10 +287,22 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
     // Local variable (shake)
     keccak_state hashState;
 
-    // Decode the secret key
-    this->skDecode(rho,tr,key,t0,s1,s2,secret_key);
+    // Line 1: Decode the secret key
+    this->skDecode(rho,tr,key,t0,s1,s2,secret_key); // check that rho,tr,key,t0,s1,s2 having same value
 
-    /* Compute mu */
+    // Line 2: convert s1 to the NTT domain
+    s1.vector_NTT();
+
+    // Line 3: convert s2 to NTT domain
+    s2.vector_NTT();
+
+    // Line 4: convert t0 in to t0 domain
+    t0.vector_NTT();
+
+    // Line 5: Sample A in NTT domain
+    A.expand(rho); // check that A has the correct value
+
+    /* Line 6: Compute µ = H(tr, M' = (Pre + Message)) -> 64 bytes, note: M' = 0 + ctxlen + ctx + M */
     shake256_init(&hashState);
     shake256_absorb(&hashState, tr.data(), TRBYTES);
     shake256_absorb(&hashState, Pre, PreLenth);
@@ -272,6 +310,112 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
     shake256_finalize(&hashState);
     shake256_squeeze(mu.data(), CRHBYTES, &hashState);
 
-    // Line 7 of the FIPS204
+    /* Line 7:  Compute ϱ" (rhoprime) = H(K, rnd, muy) -> 64 bytes */ // tested that rhoprime and mu has the same data with the test code
+    shake256_init(&hashState);
+    shake256_absorb(&hashState, key.data(), SEEDBYTES);
+    shake256_absorb(&hashState, randombuf.data(), RNDBYTES);
+    shake256_absorb(&hashState, mu.data(), CRHBYTES);
+    shake256_finalize(&hashState);
     shake256_squeeze(rhoprime.data(), CRHBYTES, &hashState);
+
+    // Move to while statement since goto never a good ideas of handling
+    while(false == valid_signature) {
+        // Line 11 sample y
+        y.vector_uniform_gamma1(rhoprime, nonce++); // TESTED
+
+        // store the vector z
+        z = y; /* deep copy */
+        z.vector_NTT();
+
+        /*Line 12 w = A * y  -> return w in polynomial domain */
+        w = matrix_multiply(A, z); // TESTED
+        w.vector_reduced();
+        w.vector_invNTT();
+        w.vector_caddq();
+
+        // Line 13, decompose
+        w.vector_decompose(w1,w0); // TESTED
+
+        // Line 15 c̃ = H(mu, w1Encode(packw1),CTILDEBYTES)
+        w1.vector_packw1(SignMessage);
+        shake256_init(&hashState);
+        shake256_absorb(&hashState, mu.data(), CRHBYTES);
+        shake256_absorb(&hashState, SignMessage, K*POLYW1_PACKEDBYTES);
+        shake256_finalize(&hashState);
+        shake256_squeeze(SignMessage, CTILDEBYTES, &hashState); // CTILDEBYTES = LAMBDA / 4
+
+        // Line 16 c = SampleInBall(c̃)
+        std::memcpy(sample_in_ball_seed.data(), SignMessage, CTILDEBYTES);
+        challengePoly.polynomial_sample_in_ball(sample_in_ball_seed); // TESTED
+
+        // Line 17: ĉ = NTT(c)
+        challengePoly.NTT();
+
+        // Line 18 temporary z = <<c*s1>> = c * s1
+        vector_and_poly_pointwise_multiply(z, challengePoly, s1);
+        z.vector_invNTT();
+
+        // Line 20 z = y + <<c*s1>> 
+        z = z + y;  // TESTED
+        z.vector_reduced();
+
+        // Line 23: check norm form GAMMA1 - BETA
+        if(z.vector_checknorm(GAMMA1 - BETA)) {
+            continue;
+        }
+
+        // Line 19 temporary h = <<c*s2>> = c * s2
+        vector_and_poly_pointwise_multiply(h, challengePoly, s2);
+        h.vector_invNTT();
+        
+        // Line 21: r0 = LowBits(w - h) = LowBits(w - <<c*s2>>)
+        w0 = w0 - h; // w0 - <<c*s2>> Tested
+        w0.vector_reduced(); // TESTED
+
+        // Line 23: Check norm for GAMMA2 - BETA
+        if(w0.vector_checknorm(GAMMA2 - BETA)) {
+            continue;
+        }
+
+        // Line 25: Compute hint
+        //h = <<c * t0>>
+        vector_and_poly_pointwise_multiply(h, challengePoly, t0);
+        h.vector_invNTT();
+        h.vector_reduced(); // h = <<c * t0>> TESTED
+
+        // Line 28: Check boundary for the hint
+        if(h.vector_checknorm(GAMMA2)) {
+            continue;
+        }
+        // Line 26
+        w0 = w0 + h; // w0 = w0 - <<c*s2>> +  <<c * t0>> // tested
+        total_hint = vector_make_hint(h, w0, w1); //tested
+
+        if(total_hint > OMEGA) {
+            continue;
+        }
+
+        valid_signature = true;
+
+    } // end of sampling the y matix
+    *SignMessageLength = CRYPTO_BYTES;
+
+
+}
+
+void sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTES>& sample_in_ball_seed, 
+    PolyVector<L>& z, 
+    PolyVector<K>& h) 
+{
+    // Local variable for tracking position
+    size_t tracking_pos{0};
+
+    // Copy c̃ seed
+    for(size_t i = 0; i < CTILDEBYTES; i++) {
+        SignMessage[i + tracking_pos] = sample_in_ball_seed.at(i);
+    }
+    tracking_pos += CTILDEBYTES;
+
+    z.vector_packz(SignMessage + tracking_pos);
+
 }

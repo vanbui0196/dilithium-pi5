@@ -198,6 +198,35 @@ public:
     }
 
     /**
+     * @brief Perform the pointwise polynomial in the NTT domain betwen the poly and vector. Return by value
+
+     * @status: NOT-TESTED 
+     * @param a First operand
+     * @param b Second operand
+     * @return PolyVector<Mm> Poly that contain the pointwise multiplication
+     */
+    friend PolyVector<Mm> vector_and_poly_pointwise_multiply(const Polynomial& a, const PolyVector<Mm>& b) {
+        PolyVector<Mm> result;
+        for(size_t i = 0; i < Mm; i++) {
+            result._poly_vector.at(i) = ntt_domain_multiply(a, b._poly_vector.at(i));
+        }
+        return result;
+    }
+
+    /**
+     * @brief Multiply in the NTT domain between the poly and vector. Return by the reference
+     * @status NOT-TESTED
+     * @param result Reference return
+     * @param a Poly a
+     * @param b Poly b
+     */
+    friend void vector_and_poly_pointwise_multiply(PolyVector<Mm>& result,const Polynomial& a, const PolyVector<Mm>& b) {
+        for(size_t i = 0; i < Mm; i++) {
+            result._poly_vector.at(i) = ntt_domain_multiply(a, b._poly_vector.at(i));
+        }
+    }
+
+    /**
      * @brief Vector multiply in the NTT domain (return by value)
      * status: TESTED
      * @param a First operand
@@ -415,6 +444,18 @@ public:
     void vector_unpacketa(const uint8_t* buf){
         for(size_t i = 0; i < Mm; ++i) {
             this->_poly_vector.at(i).polyeta_unpack(&buf[i*POLYETA_PACKEDBYTES]);
+        }
+    }
+
+    void vector_packz(uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyz_pack(&buf[i*POLYZ_PACKEDBYTES]);
+        }
+    }
+
+    void vector_unpackz(const uint8_t* buf){
+        for(size_t i = 0; i < Mm; ++i) {
+            this->_poly_vector.at(i).polyz_unpack(&buf[i*POLYZ_PACKEDBYTES]);
         }
     }
     
