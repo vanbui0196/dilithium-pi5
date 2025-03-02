@@ -108,6 +108,17 @@ void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho) {
     this->_t1.vector_packt1(this->public_key.data() + SEEDBYTES);
 }
 
+void MLDSA::pkDecode(std::array<uint8_t,SEEDBYTES>& rho, PolyVector<K>& t1,const std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& public_key) {
+    size_t track_pos{0};
+
+    for(size_t i = 0; i < SEEDBYTES; i++) {
+        rho.at(i) = public_key.at(i);
+    }
+    track_pos += SEEDBYTES;
+
+    t1.vector_unpackt1(public_key.data() + track_pos);
+}
+
 /**
  * @brief Encode secret key
  * TESTED
@@ -403,6 +414,113 @@ void MLDSA::SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
 
 }
 
+
+int MLDSA::Verify(const uint8_t* Signature, 
+    size_t SignatureLength, 
+    const uint8_t* Message, 
+    size_t MessageLength, 
+    const uint8_t* ctx,
+    size_t ctxlen, const std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& public_key) 
+{
+    uint8_t Pre[257];
+
+    if(ctxlen > 255)
+    {
+        return -1;
+    }
+
+    Pre[0] = 0;
+    Pre[1] = ctxlen;
+    for(size_t i = 0; i < ctxlen; i++)
+    {
+        Pre[2 + i] = ctx[i];
+    }
+    return this->VerifyInternal(Signature, SignatureLength, Message, MessageLength, Pre, ctxlen + 2, public_key);
+}
+
+int MLDSA::VerifyInternal(const uint8_t* Signature, 
+    size_t SignatureLength, 
+    const uint8_t* Message, 
+    size_t MessageLength, uint8_t* Pre, size_t PreLength, const std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& public_key)
+{
+    // Local variable
+    std::array<uint8_t, K * POLYW1_PACKEDBYTES> buf = {0};
+    std::array<uint8_t, SEEDBYTES> rho = {0};
+    std::array<uint8_t, CRHBYTES> mu = {0};
+    std::array<uint8_t, CTILDEBYTES> sample_in_ball_seed = {0};
+    std::array<uint8_t, CTILDEBYTES> sample_in_ball_seed2 = {0};
+
+    Polynomial poly_challenge;
+    PolyMatrix<K,L> A;
+    PolyVector<L> z;
+
+    PolyVector<K> t1,w1,h;
+    keccak_state state;
+
+    if(SignatureLength != CRYPTO_BYTES) {
+        return -1;
+    }
+
+    this->pkDecode(rho,t1,public_key); // TESTED
+    
+    if(1 == this->sigDecode(sample_in_ball_seed, z, h, Signature)) {
+        return -1;
+    } // TESTED (z,h, sambple_in_ball_seed has the correct value)
+
+    if(z.vector_checknorm(GAMMA1 - BETA)) {
+        return -1;
+    }
+
+    /* Compute H(H(rho, t1), pre, msg) */
+    shake256(mu.data(), TRBYTES, public_key.data(), CRYPTO_PUBLICKEYBYTES);
+    shake256_init(&state);
+    shake256_absorb(&state, mu.data(), TRBYTES);
+    shake256_absorb(&state, Pre, PreLength);
+    shake256_absorb(&state, Message, MessageLength);
+    shake256_finalize(&state);
+    shake256_squeeze(mu.data(), CRHBYTES, &state);
+
+    // Signature verification
+    poly_challenge.polynomial_sample_in_ball(sample_in_ball_seed);
+    A.expand(rho);
+
+    z.vector_NTT();
+    w1 = matrix_multiply(A,z); //TESTED
+
+    poly_challenge.NTT();
+    t1.vector_shiftl();
+    t1.vector_NTT();
+    vector_and_poly_pointwise_multiply(t1,poly_challenge,t1); // TESTED
+
+
+
+    w1 = w1 - t1;
+    w1.vector_reduced();
+    w1.vector_invNTT(); // TESTED
+    
+
+    w1.vector_caddq();
+
+    vector_use_hint(w1,w1,h); // TESTED
+
+    w1.vector_packw1(buf.data());
+
+    shake256_init(&state);
+    shake256_absorb(&state, mu.data(), CRHBYTES);
+    shake256_absorb(&state, buf.data(), K*POLYW1_PACKEDBYTES);
+    shake256_finalize(&state);
+    shake256_squeeze(sample_in_ball_seed2.data(), CTILDEBYTES, &state);
+
+    for(size_t i = 0; i < CTILDEBYTES; i++) {
+        if(sample_in_ball_seed.at(i) != sample_in_ball_seed2.at(i)) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+
 void MLDSA::sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTES>& sample_in_ball_seed, 
     PolyVector<L>& z, 
     PolyVector<K>& h) 
@@ -429,5 +547,45 @@ void MLDSA::sigEncode(uint8_t* SignMessage, const std::array<uint8_t, CTILDEBYTE
         }
         SignMessage[OMEGA + i] = k;
     }
+}
+// TESTED
+int MLDSA::sigDecode(std::array<uint8_t, CTILDEBYTES>& sample_in_ball_seed, 
+    PolyVector<L>& z, 
+    PolyVector<K>& h,
+    const uint8_t* Signature) 
+{
+    for(size_t i = 0; i < CTILDEBYTES; ++i) {
+        sample_in_ball_seed.at(i) = Signature[i];
+    }
+    Signature += CTILDEBYTES;
 
+    z.vector_unpackz(Signature);
+    Signature += L*POLYZ_PACKEDBYTES;
+
+    size_t k = 0;
+    for(size_t i = 0; i < K; ++i) {
+
+      if(Signature[OMEGA + i] < k || Signature[OMEGA + i] > OMEGA)
+      {
+        return 1;
+      }
+
+      for(size_t j = k; j < Signature[OMEGA + i]; ++j) {
+        /* Coefficients are ordered for strong unforgeability */
+        if(j > k && Signature[j] <= Signature[j-1]) return 1;
+        h.access_poly_at(i).set_value(Signature[j], 1);
+      }
+  
+      k = Signature[OMEGA + i];
+    }
+
+      /* Extra indices are zero for strong unforgeability */
+    for(size_t j = k; j < OMEGA; ++j)
+    {
+        if(Signature[j])
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
