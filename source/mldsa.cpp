@@ -7,7 +7,8 @@ MLDSA::MLDSA() : test_mode{false} {
 MLDSA::MLDSA(bool mode) : test_mode{mode} {
 }
 
-void MLDSA::KeyGen() {
+void MLDSA::KeyGen(std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray, 
+    std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& skArray) {
 
     // array for get random value
     std::array<uint8_t, SEEDBYTES + CRHBYTES + SEEDBYTES> seedbuf; // buffer for sheed byte
@@ -68,13 +69,13 @@ void MLDSA::KeyGen() {
     this->_t.vector_power2round(this->_t1, this->_t0); // -> decompose the vector (t1, t0) -> tested
 
     // encode the public key
-    this->pkEncode(rho); // tested -> pk
+    this->pkEncode(rho, pkArray); // tested -> pk
 
     // compute the tr for the private key
-    shake256(tr.data(), TRBYTES, this->public_key.data(), CRYPTO_PUBLICKEYBYTES); // tested
+    shake256(tr.data(), TRBYTES, pkArray.data(), CRYPTO_PUBLICKEYBYTES); // tested
 
     // pack the secret key
-    this->skEncode(rho, tr, key); // tested
+    this->skEncode(rho, tr, key, skArray); // tested
 
 }
 
@@ -83,15 +84,15 @@ void MLDSA::KeyGen() {
  * TESTED
  * @param rho 
  */
-void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho) {
+void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho, std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray) {
     
     // Copy rho into the public key
     for(size_t i = 0; i < SEEDBYTES; i++) {
-        this->public_key[i] = rho.at(i);
+        pkArray[i] = rho.at(i);
     }
 
     // pack the vector to the buffer
-    this->_t1.vector_packt1(this->public_key.data() + SEEDBYTES);
+    this->_t1.vector_packt1(pkArray.data() + SEEDBYTES);
 }
 
 void MLDSA::pkDecode(std::array<uint8_t,SEEDBYTES>& rho, PolyVector<K>& t1,const std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& public_key) {
@@ -114,31 +115,32 @@ void MLDSA::pkDecode(std::array<uint8_t,SEEDBYTES>& rho, PolyVector<K>& t1,const
  */
 void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho, 
     const std::array<uint8_t, TRBYTES>& tr, 
-    const std::array<uint8_t, SEEDBYTES>& key) 
+    const std::array<uint8_t, SEEDBYTES>& key,
+    std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& skArray) 
 {
     size_t adding_pos{0};
     // copy the data from rho in to secret key
-    std::copy(rho.begin(),rho.end(), this->secret_key.begin() + adding_pos);
+    std::copy(rho.begin(),rho.end(), skArray.begin() + adding_pos);
     adding_pos += SEEDBYTES;
 
     // copy the data from key in secret key buffer
-    std::copy(key.begin(),key.end(), this->secret_key.begin() + adding_pos);
+    std::copy(key.begin(),key.end(), skArray.begin() + adding_pos);
     adding_pos+= SEEDBYTES;
 
     // copy the data from tr (hash of the public key) in to secret key
-    std::copy(tr.begin(),tr.end(), this->secret_key.begin() + adding_pos);
+    std::copy(tr.begin(),tr.end(), skArray.begin() + adding_pos);
     adding_pos+= TRBYTES;
 
     // pack s1 -> secret key buffer (L size)
-    this->_s1.vector_packeta(this->secret_key.begin() + adding_pos);
+    this->_s1.vector_packeta(skArray.begin() + adding_pos);
     adding_pos += L * POLYETA_PACKEDBYTES;
 
     // pack s2 -> secret key buffer (K size)
-    this->_s2.vector_packeta(this->secret_key.begin() + adding_pos);
+    this->_s2.vector_packeta(skArray.begin() + adding_pos);
     adding_pos += K * POLYETA_PACKEDBYTES;
 
     // pack t0 into buffer
-    this->_t0.vector_packt0(this->secret_key.begin() + adding_pos);
+    this->_t0.vector_packt0(skArray.begin() + adding_pos);
     adding_pos += K * POLYT0_PACKEDBYTES; // this does not has any purpose
 }
 

@@ -26,7 +26,7 @@ private:
     PolyVector<L> _y;
     PolyVector<K> _h;
     bool test_mode;
-
+    
     void SignInternal(uint8_t* SignMessage, size_t* SignMessageLength,
                       const uint8_t* Mesage, size_t MessageLength,
                       const uint8_t* Pre, size_t PreLenth, const std::array<uint8_t, RNDBYTES> randombuf, 
@@ -37,14 +37,13 @@ private:
 public:
     MLDSA();
     MLDSA(bool mode);
-    std::array<uint8_t, CRYPTO_PUBLICKEYBYTES> public_key = {0};
-    std::array<uint8_t, CRYPTO_SECRETKEYBYTES> secret_key = {0};
 
-    void pkEncode(const std::array<uint8_t, SEEDBYTES>& rho);
+    void pkEncode(const std::array<uint8_t, SEEDBYTES>& rho, std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray);
     
     void skEncode(const std::array<uint8_t, SEEDBYTES>& rho, 
-                  const std::array<uint8_t, TRBYTES>& tr, 
-                  const std::array<uint8_t, SEEDBYTES>& key);
+        const std::array<uint8_t, TRBYTES>& tr, 
+        const std::array<uint8_t, SEEDBYTES>& key,
+        std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& skArray);
                   
     void skDecode(std::array<uint8_t,SEEDBYTES>& rho, std::array<uint8_t, TRBYTES>& tr, std::array<uint8_t,SEEDBYTES>& key,
     PolyVector<K>& t0, PolyVector<L>& s1, PolyVector<K>& s2, const std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& secret_key);
@@ -60,7 +59,7 @@ public:
         PolyVector<K>& h,
         const uint8_t* Signature);
 
-    void KeyGen();
+    void KeyGen(std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkInArr, std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& skInArr);
 
     int Sign(uint8_t* SignMessage, size_t* SignMessageLength,
               const uint8_t* Mesage, size_t MessageLength,
