@@ -76,20 +76,6 @@ void MLDSA::KeyGen() {
     // pack the secret key
     this->skEncode(rho, tr, key); // tested
 
-    // for(auto i = 0; i < rho.size(); i++) {
-    //     std::cout << (int)rho.at(i);
-    // } std::cout << std::endl;
-    // for(auto i = 0; i < tr.size(); i++) {
-    //     std::cout << (int)tr.at(i);
-    // } std::cout << std::endl;
-    // for(auto i = 0; i < key.size(); i++) {
-    //     std::cout << (int)key.at(i);
-    // } std::cout << std::endl;
-    // std::cout << "Vector s1: \n" << this->_s1;
-    // std::cout << "Vector s2: \n" << this->_s2;
-    // std::cout << "Vector t0: \n" << this->_t0;
-    
-
 }
 
 /**
@@ -154,19 +140,6 @@ void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho,
     // pack t0 into buffer
     this->_t0.vector_packt0(this->secret_key.begin() + adding_pos);
     adding_pos += K * POLYT0_PACKEDBYTES; // this does not has any purpose
-
-    // for(auto i = 0; i < rho.size(); i++) {
-    //     std::cout << (int)rho.at(i);
-    // } std::cout << std::endl;
-    // for(auto i = 0; i < tr.size(); i++) {
-    //     std::cout << (int)tr.at(i);
-    // } std::cout << std::endl;
-    // for(auto i = 0; i < key.size(); i++) {
-    //     std::cout << (int)key.at(i);
-    // } std::cout << std::endl;
-    // std::cout << "Vector s1: \n" << this->_s1;
-    // std::cout << "Vector s2: \n" << this->_s2;
-    // std::cout << "Vector t0: \n" << this->_t0;
 }
 
 /**
@@ -215,19 +188,6 @@ void MLDSA::skDecode(std::array<uint8_t,SEEDBYTES>& rho, std::array<uint8_t, TRB
     //Unpack the data into t0 vector
     t0.vector_unpackt0(secret_key.data() + tracking_pos);
     tracking_pos += K * POLYT0_PACKEDBYTES; // not needed, just for the fullfilment
-
-    // for(auto i = 0; i < rho.size(); i++) {
-    //     std::cout << (int)rho.at(i);
-    // } std::cout << std::endl;
-    // for(auto i = 0; i < tr.size(); i++) {
-    //     std::cout << (int)tr.at(i);
-    // } std::cout << std::endl;
-    // for(auto i = 0; i < key.size(); i++) {
-    //     std::cout << (int)key.at(i);
-    // } std::cout << std::endl;
-    // std::cout << "Vector s1: \n" << this->_s1;
-    // std::cout << "Vector s2: \n" << this->_s2;
-    // std::cout << "Vector t0: \n" << this->_t0;
 }
 
 
