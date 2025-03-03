@@ -451,7 +451,7 @@ int MLDSA::VerifyInternal(const uint8_t* Signature,
     std::array<uint8_t, CTILDEBYTES> sample_in_ball_seed2 = {0};
 
     Polynomial poly_challenge;
-    PolyMatrix<K,L> A;
+    PolyMatrix<L, K> A;
     PolyVector<L> z;
 
     PolyVector<K> t1,w1,h;
