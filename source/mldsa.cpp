@@ -10,6 +10,14 @@ MLDSA::MLDSA(bool mode) : test_mode{mode} {
 void MLDSA::KeyGen(std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray, 
     std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& skArray) {
 
+    // Polynomial components
+    PolyMatrix<L, K> A;                    // Public matrix
+    PolyVector<K> t;                       // Public key vector
+    PolyVector<K> t1;                      // Public key vector (high bits)
+    PolyVector<L> s1;                      // Secret key vector
+    PolyVector<K> s2;                      // Secret key vector
+    PolyVector<K> t0;                      // Secret key vector (low bits)
+
     // array for get random value
     std::array<uint8_t, SEEDBYTES + CRHBYTES + SEEDBYTES> seedbuf; // buffer for sheed byte
     std::array<uint8_t, TRBYTES> tr; // buffer for the tr part
@@ -49,33 +57,33 @@ void MLDSA::KeyGen(std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray,
     std::copy(seedbuf.begin() + SEEDBYTES + CRHBYTES, seedbuf.begin() + SEEDBYTES + CRHBYTES + SEEDBYTES, key.begin());
 
     // smaple the matrix A based on the rho -> having A -> Â actually
-    this->_A.expand(rho); //tested
+    A.expand(rho); //tested
     
     // sample the vector s1 and s2 -> having s1, s2
-    this->_s1.vector_uniform_eta(rhoprime, 0); // tested
-    this->_s2.vector_uniform_eta(rhoprime, L); //tested
+    s1.vector_uniform_eta(rhoprime, 0); // tested
+    s2.vector_uniform_eta(rhoprime, L); //tested
 
-    PolyVector<L> s1_hat = this->_s1;
+    PolyVector<L> s1_hat = s1;
     s1_hat.vector_NTT();
-    this->_t = matrix_multiply(this->_A, s1_hat); //-> t = A * s1
-    this->_t.vector_reduced();
-    this->_t.vector_invNTT(); // tested
+    t = matrix_multiply(A, s1_hat); //-> t = A * s1
+    t.vector_reduced();
+    t.vector_invNTT(); // tested
 
-    this->_t = this->_t + this->_s2; //-> t = A*s1 + s2
+    t = t + s2; //-> t = A*s1 + s2
 
-    this->_t.vector_caddq(); // -> adding the value to the coefficient in case of negative
+    t.vector_caddq(); // -> adding the value to the coefficient in case of negative
 
     // Extract highbit and low bit part
-    this->_t.vector_power2round(this->_t1, this->_t0); // -> decompose the vector (t1, t0) -> tested
+    t.vector_power2round(t1, t0); // -> decompose the vector (t1, t0) -> tested
 
     // encode the public key
-    this->pkEncode(rho, pkArray); // tested -> pk
+    this->pkEncode(rho,t1,pkArray); // tested -> pk
 
     // compute the tr for the private key
     shake256(tr.data(), TRBYTES, pkArray.data(), CRYPTO_PUBLICKEYBYTES); // tested
 
     // pack the secret key
-    this->skEncode(rho, tr, key, skArray); // tested
+    this->skEncode(rho,tr,key,s1,s2,t0,skArray); // tested
 
 }
 
@@ -84,7 +92,7 @@ void MLDSA::KeyGen(std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray,
  * TESTED
  * @param rho 
  */
-void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho, std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray) {
+void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho, PolyVector<K> t1,std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& pkArray) {
     
     // Copy rho into the public key
     for(size_t i = 0; i < SEEDBYTES; i++) {
@@ -92,7 +100,7 @@ void MLDSA::pkEncode(const std::array<uint8_t, SEEDBYTES>& rho, std::array<uint8
     }
 
     // pack the vector to the buffer
-    this->_t1.vector_packt1(pkArray.data() + SEEDBYTES);
+    t1.vector_packt1(pkArray.data() + SEEDBYTES);
 }
 
 void MLDSA::pkDecode(std::array<uint8_t,SEEDBYTES>& rho, PolyVector<K>& t1,const std::array<uint8_t, CRYPTO_PUBLICKEYBYTES>& public_key) {
@@ -116,6 +124,7 @@ void MLDSA::pkDecode(std::array<uint8_t,SEEDBYTES>& rho, PolyVector<K>& t1,const
 void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho, 
     const std::array<uint8_t, TRBYTES>& tr, 
     const std::array<uint8_t, SEEDBYTES>& key,
+    PolyVector<L>& s1, PolyVector<K>& s2, PolyVector<K>& t0,
     std::array<uint8_t, CRYPTO_SECRETKEYBYTES>& skArray) 
 {
     size_t adding_pos{0};
@@ -132,15 +141,15 @@ void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho,
     adding_pos+= TRBYTES;
 
     // pack s1 -> secret key buffer (L size)
-    this->_s1.vector_packeta(skArray.begin() + adding_pos);
+    s1.vector_packeta(skArray.begin() + adding_pos);
     adding_pos += L * POLYETA_PACKEDBYTES;
 
     // pack s2 -> secret key buffer (K size)
-    this->_s2.vector_packeta(skArray.begin() + adding_pos);
+    s2.vector_packeta(skArray.begin() + adding_pos);
     adding_pos += K * POLYETA_PACKEDBYTES;
 
     // pack t0 into buffer
-    this->_t0.vector_packt0(skArray.begin() + adding_pos);
+    t0.vector_packt0(skArray.begin() + adding_pos);
     adding_pos += K * POLYT0_PACKEDBYTES; // this does not has any purpose
 }
 
