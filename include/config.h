@@ -7,8 +7,6 @@
 #define DILITHIUM_MODE 5
 #endif
 
-// Define randomized signing by default
-#define DILITHIUM_RANDOMIZED_SIGNING
 
 // Configure namespace and algorithm name based on mode
 #if DILITHIUM_MODE == 2
