@@ -26,27 +26,12 @@ set(SOURCES
 # Create the library dilithium
 add_library(dilithium ${SOURCES})
 
-add_executable(main_test
+add_executable(mldsa
     test/main.cpp
 )
 
-add_executable(poly_algo_test
-    test/test_poly_algo.cpp
-)
-
-add_executable(poly_vector_test
-    test/test_poly_vector.cpp
-)
-
-add_executable(sig_test
-    test/test_signature.cpp
-)
-
 # Link the test executable with the library
-target_link_libraries(main_test PRIVATE dilithium)
-target_link_libraries(poly_algo_test PRIVATE dilithium)
-target_link_libraries(poly_vector_test PRIVATE dilithium)
-target_link_libraries(sig_test PRIVATE dilithium)
+target_link_libraries(mldsa PRIVATE dilithium)
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
