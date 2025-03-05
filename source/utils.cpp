@@ -128,7 +128,7 @@ namespace mldsa
         }
 
         /**
-         * @brief Dilithium Ref Code: Calculate the hint
+         * @brief This take 100% from Dilithium Ref. Make hint for high bit
          * 
          * @param a0 
          * @param a1 
@@ -144,6 +144,13 @@ namespace mldsa
             return retVal;
         }
 
+        /**
+         * @brief Use hint function. This take directly from Dilithium Signature Source Code
+         * 
+         * @param a coefficient
+         * @param hint Hint for updating
+         * @return int32_t 
+         */
         int32_t use_hint(int32_t a, uint32_t hint) {
         /* Get the high bit and low bit according to the hint */
         auto [a0, a1] = decompose(a);
@@ -180,7 +187,7 @@ namespace mldsa
     }
 
     bool get_random_bytes(uint8_t* buffer, size_t length) {
-        // use the urandom since it better
+        // Call the urandom from Raspberry Pi kernel for getting the random byte uniformly
         int random_fd = open("/dev/urandom", O_RDONLY);
         if (random_fd < 0) {
             return false; // Failed to open /dev/urandom
@@ -189,7 +196,8 @@ namespace mldsa
         ssize_t result = read(random_fd, buffer, length);
         close(random_fd);
         
-        return (result == static_cast<ssize_t>(length)); // Return true if we read the expected number of bytes
+        // If the number of 
+        return (result == static_cast<ssize_t>(length));
     }
 }
     
