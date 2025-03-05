@@ -1,3 +1,0 @@
-TestVectorFormatting 0 0
----
-TestVectorFormatting

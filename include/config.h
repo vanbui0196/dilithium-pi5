@@ -4,7 +4,7 @@
 
 // Default mode if not specified
 #ifndef DILITHIUM_MODE
-#define DILITHIUM_MODE 5
+#define DILITHIUM_MODE 2
 #endif
 
 

@@ -1,2 +1,0 @@
-/usr/bin/ar qc libdilithium.a CMakeFiles/dilithium.dir/source/poly_algo.cpp.o CMakeFiles/dilithium.dir/source/utils.cpp.o CMakeFiles/dilithium.dir/ref/source/stream.cpp.o CMakeFiles/dilithium.dir/ref/source/fips202.c.o
-/usr/bin/ranlib libdilithium.a

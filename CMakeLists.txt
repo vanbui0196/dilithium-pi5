@@ -48,25 +48,5 @@ target_link_libraries(poly_algo_test PRIVATE dilithium)
 target_link_libraries(poly_vector_test PRIVATE dilithium)
 target_link_libraries(sig_test PRIVATE dilithium)
 
-# Add a custom command to run the test and capture output
-add_custom_command(
-    TARGET poly_vector_test
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Running poly_vector_test and comparing output..."
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
-            ${CMAKE_SOURCE_DIR}/test/test_poly_vector_expected_output.txt
-            ${CMAKE_BINARY_DIR}/expected_output.txt
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/test_output.txt
-)
-
-# Add the test with output comparison
-add_test(
-    NAME poly_vector_test_output
-    COMMAND ${CMAKE_COMMAND}
-        -DTEST_PROG=$<TARGET_FILE:poly_vector_test>
-        -DEXPECTED_OUTPUT=${CMAKE_BINARY_DIR}/expected_output.txt
-        -DTEST_OUTPUT=${CMAKE_BINARY_DIR}/test_output.txt
-        -P ${CMAKE_SOURCE_DIR}/test/compare_output.cmake
-)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -52,6 +52,7 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "*.tpp": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "iomanip": "cpp"
     }
 }

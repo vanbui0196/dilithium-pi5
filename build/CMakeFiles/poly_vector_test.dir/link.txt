@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/poly_vector_test.dir/test/test_poly_vector.cpp.o -o poly_vector_test  libdilithium.a 

@@ -34,3 +34,5 @@
 out/*
 .vscode/browse*
 CMakePresets.json
+
+build
