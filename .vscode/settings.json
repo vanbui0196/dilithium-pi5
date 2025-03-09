@@ -53,6 +53,7 @@
         "thread": "cpp",
         "*.tpp": "cpp",
         "cstring": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "fstream": "cpp"
     }
 }

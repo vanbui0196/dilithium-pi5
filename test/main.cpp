@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <chrono> // For time measurement
 #include "utils.h"
 #include "mldsa.h"
 
@@ -61,11 +62,12 @@ void print_usage() {
               << "  -v, --verify                   Verify a signature with ML-DSA\n"
               << "      --pk=FILE                  Public key file (in hex format) for verification\n"
               << "      --signature=FILE           Signature file (in hex format) to verify\n"
+              << "  -t, --time                     Measure and display execution time in microseconds\n"
               << "  -h, --help                     Show this help message\n"
               << std::endl;
 }
 
-void generate_keypair() {
+void generate_keypair(bool measure_time) {
     std::cout << "Generating ML-DSA keypair..." << std::endl;
     
     // Create ML-DSA object and generate keys
@@ -73,7 +75,14 @@ void generate_keypair() {
     std::array<uint8_t, CRYPTO_PUBLICKEYBYTES> public_key;
     std::array<uint8_t, CRYPTO_SECRETKEYBYTES> secret_key;
     
+    // Start time measurement if requested
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
     mldsa.KeyGen(public_key, secret_key);
+    
+    // End time measurement if requested
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     
     // Convert the binary keys to hex strings
     std::string hex_public = to_hex_string(public_key.data(), public_key.size());
@@ -93,9 +102,14 @@ void generate_keypair() {
     private_file.close();
     
     std::cout << "Keys have been saved in hex format to 'mldsa_public.txt' and 'mldsa_private.txt'" << std::endl;
+    
+    // Print execution time if requested
+    if (measure_time) {
+        std::cout << "Execution time: " << duration.count() << " us" << std::endl;
+    }
 }
 
-void sign_message(const std::string& message_file, const std::string& sk_file, const std::string& output_file) {
+void sign_message(const std::string& message_file, const std::string& sk_file, const std::string& output_file, bool measure_time) {
     std::cout << "Signing message from " << message_file << " with key from " << sk_file << "..." << std::endl;
     
     try {
@@ -124,12 +138,19 @@ void sign_message(const std::string& message_file, const std::string& sk_file, c
         // Create ML-DSA object
         MLDSA mldsa;
         
+        // Start time measurement if requested
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
         // Sign the message
         int result = mldsa.Sign(
             signature.data(), &sig_len,
             reinterpret_cast<const uint8_t*>(message.data()), message.size(),
             nullptr, 0, secret_key
         );
+        
+        // End time measurement if requested
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         
         if (result != 0) {
             std::cerr << "Error: Signature generation failed with code " << result << std::endl;
@@ -149,13 +170,18 @@ void sign_message(const std::string& message_file, const std::string& sk_file, c
         
         std::cout << "Signature saved to " << output_file << std::endl;
         std::cout << "Signature size: " << sig_len << " bytes" << std::endl;
+        
+        // Print execution time if requested
+        if (measure_time) {
+            std::cout << "Execution time: " << duration.count() << " us" << std::endl;
+        }
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
 }
 
-void verify_signature(const std::string& message_file, const std::string& pk_file, const std::string& signature_file) {
+void verify_signature(const std::string& message_file, const std::string& pk_file, const std::string& signature_file, bool measure_time) {
 
     // Log out the message
     std::cout << "Verifying signature from " << signature_file << " for message " 
@@ -187,6 +213,9 @@ void verify_signature(const std::string& message_file, const std::string& pk_fil
         // Create ML-DSA object
         MLDSA mldsa;
         
+        // Start time measurement if requested
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
         // Verify the signature
         int result = mldsa.Verify(
             signature.data(), signature.size(),
@@ -194,10 +223,19 @@ void verify_signature(const std::string& message_file, const std::string& pk_fil
             nullptr, 0, public_key
         );
         
+        // End time measurement if requested
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+        
         if (result == 0) {
             std::cout << "Verification SUCCESSFUL! The signature is valid." << std::endl;
         } else {
             std::cout << "Verification FAILED! The signature is invalid." << std::endl;
+        }
+        
+        // Print execution time if requested
+        if (measure_time) {
+            std::cout << "Execution time: " << duration.count() << " us" << std::endl;
         }
     }
     catch (const std::exception& e) {
@@ -224,6 +262,7 @@ int main(int argc, char* argv[]) {
     // Variables for command options
     bool sign_mode = false;
     bool verify_mode = false;
+    bool measure_time = false;
     std::string message_file;
     std::string sk_file;
     std::string pk_file;
@@ -235,7 +274,7 @@ int main(int argc, char* argv[]) {
         std::string arg = argv[i];
         
         if (arg == "-g" || arg == "--keygen") {
-            generate_keypair();
+            generate_keypair(measure_time);
             return 0;
         }
         else if (arg == "-s" || arg == "--sign") {
@@ -243,6 +282,9 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "-v" || arg == "--verify") {
             verify_mode = true;
+        }
+        else if (arg == "-t" || arg == "--time") {
+            measure_time = true;
         }
         else if (arg.find("--message=") == 0) {
             message_file = get_option_value(arg);
@@ -281,7 +323,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        sign_message(message_file, sk_file, output_file);
+        sign_message(message_file, sk_file, output_file, measure_time);
         return 0;
     }
     
@@ -300,7 +342,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        verify_signature(message_file, pk_file, signature_file);
+        verify_signature(message_file, pk_file, signature_file, measure_time);
         return 0;
     }
     
