@@ -141,15 +141,15 @@ void MLDSA::skEncode(const std::array<uint8_t, SEEDBYTES>& rho,
     adding_pos+= TRBYTES;
 
     // pack s1 -> secret key buffer (L size)
-    s1.vector_packeta(skArray.begin() + adding_pos);
+    s1.vector_packeta(skArray.data() + adding_pos);
     adding_pos += L * POLYETA_PACKEDBYTES;
 
     // pack s2 -> secret key buffer (K size)
-    s2.vector_packeta(skArray.begin() + adding_pos);
+    s2.vector_packeta(skArray.data() + adding_pos);
     adding_pos += K * POLYETA_PACKEDBYTES;
 
     // pack t0 into buffer
-    t0.vector_packt0(skArray.begin() + adding_pos);
+    t0.vector_packt0(skArray.data() + adding_pos);
     adding_pos += K * POLYT0_PACKEDBYTES; // this does not has any purpose
 }
 

@@ -10,8 +10,15 @@
  #include <iostream>
  #include <cstdint>
  #include <fcntl.h>
- #include <unistd.h>
 
+#ifdef _WIN32
+    #include <windows.h>
+    #include <bcrypt.h>
+#endif
+
+#ifdef __linux__
+ #include <unistd.h>
+#endif
 namespace mldsa
 {
     namespace utils {
@@ -186,6 +193,7 @@ namespace mldsa
         }
     }
 
+    #ifdef __linux__
     bool get_random_bytes(uint8_t* buffer, size_t length) {
         // Call the urandom from Raspberry Pi kernel for getting the random byte uniformly
         int random_fd = open("/dev/urandom", O_RDONLY);
@@ -199,6 +207,36 @@ namespace mldsa
         // If the number of 
         return (result == static_cast<ssize_t>(length));
     }
+    #elif defined(_WIN32)
+    bool get_random_bytes(uint8_t* buffer, size_t length) {
+        HCRYPTPROV ctx;
+        size_t len;
+
+        if (!CryptAcquireContext(&ctx, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+            abort();
+
+        while (length > 0) {
+            len = (length > 1048576) ? 1048576 : length;
+            if (!CryptGenRandom(ctx, len, (BYTE*)buffer))
+                abort();
+
+            buffer += len;
+            length -= len;
+    }
+
+        if (!CryptReleaseContext(ctx, 0))
+            abort();
+    }
+    #else
+    /**
+        Fallback case to avoid compilation break
+    */
+    bool get_random_bytes(uint8_t* buffer, size_t length) {
+        for (size_t i = 0; i < length; ++i) {
+            buffer[i] = 0u;
+        }
+    }
+    #endif
 }
     
 } // namespace mldsa
