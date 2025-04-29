@@ -86,9 +86,11 @@ void print_usage() {
         << "      --message=FILE_OR_HEX      Message file path or direct hex string to sign or verify\n"
         << "      --sk=FILE                  Private key file (in hex format) for signing\n"
         << "      --output=FILE              Output file for signature (default: signature.txt)\n"
+        << "      --result                   Print signature as hex string instead of writing to file\n"
         << "  -v, --verify                   Verify a signature with ML-DSA\n"
         << "      --pk=FILE                  Public key file (in hex format) for verification\n"
         << "      --signature=FILE_OR_HEX    Signature file path or direct hex string to verify\n"
+        << "      --result                   Output only result code (0 for success, -1 for failure)\n"
         << "  -t, --time                     Measure and display execution time in microseconds\n"
         << "  -h, --help                     Show this help message\n"
         << std::endl;
@@ -136,19 +138,26 @@ void generate_keypair(bool measure_time) {
     }
 }
 
-void sign_message(const std::string& message_input, const std::string& sk_file, const std::string& output_file, bool measure_time) {
-    std::cout << "Signing message with key from " << sk_file << "..." << std::endl;
+void sign_message(const std::string& message_input, const std::string& sk_file, 
+                 const std::string& output_file, bool measure_time, bool print_result) {
+    if (!print_result) {
+        std::cout << "Signing message with key from " << sk_file << "..." << std::endl;
+    }
 
     try {
         // Read message - either from file or directly from hex
         std::string message;
         if (is_hex_string(message_input)) {
-            std::cout << "Using hex input as message data." << std::endl;
+            if (!print_result) {
+                std::cout << "Using hex input as message data." << std::endl;
+            }
             std::vector<uint8_t> message_bytes = hex_string_to_binary(message_input);
             message = std::string(message_bytes.begin(), message_bytes.end());
         }
         else {
-            std::cout << "Reading message from file: " << message_input << std::endl;
+            if (!print_result) {
+                std::cout << "Reading message from file: " << message_input << std::endl;
+            }
             message = read_file(message_input);
         }
 
@@ -199,17 +208,22 @@ void sign_message(const std::string& message_input, const std::string& sk_file, 
         // Convert signature to hex string
         std::string hex_signature = to_hex_string(signature.data(), signature.size());
 
-        // Save signature to file
-        std::ofstream sig_file(output_file);
-        sig_file << hex_signature;
-        sig_file.close();
+        if (print_result) {
+            // Just print the signature as hex string
+            std::cout << hex_signature << std::endl;
+        } else {
+            // Save signature to file
+            std::ofstream sig_file(output_file);
+            sig_file << hex_signature;
+            sig_file.close();
 
-        std::cout << "Signature saved to " << output_file << std::endl;
-        std::cout << "Signature size: " << sig_len << " bytes" << std::endl;
+            std::cout << "Signature saved to " << output_file << std::endl;
+            std::cout << "Signature size: " << sig_len << " bytes" << std::endl;
 
-        // Print execution time if requested
-        if (measure_time) {
-            std::cout << "Execution time: " << duration.count() << " us" << std::endl;
+            // Print execution time if requested
+            if (measure_time) {
+                std::cout << "Execution time: " << duration.count() << " us" << std::endl;
+            }
         }
     }
     catch (const std::exception& e) {
@@ -217,35 +231,48 @@ void sign_message(const std::string& message_input, const std::string& sk_file, 
     }
 }
 
-void verify_signature(const std::string& message_input, const std::string& pk_file, const std::string& signature_input, bool measure_time) {
-    std::cout << "Verifying signature";
+void verify_signature(const std::string& message_input, const std::string& pk_file, 
+                     const std::string& signature_input, bool measure_time, bool result_only) {
+    if (!result_only) {
+        std::cout << "Verifying signature";
+    }
 
     try {
         // Read message - either from file or directly from hex
         std::string message;
         if (is_hex_string(message_input)) {
-            std::cout << " for hex message data";
+            if (!result_only) {
+                std::cout << " for hex message data";
+            }
             std::vector<uint8_t> message_bytes = hex_string_to_binary(message_input);
             message = std::string(message_bytes.begin(), message_bytes.end());
         }
         else {
-            std::cout << " for message from " << message_input;
+            if (!result_only) {
+                std::cout << " for message from " << message_input;
+            }
             message = read_file(message_input);
         }
 
         // Read signature - either from file or directly from hex
         std::vector<uint8_t> signature;
         if (is_hex_string(signature_input)) {
-            std::cout << " using direct hex signature";
+            if (!result_only) {
+                std::cout << " using direct hex signature";
+            }
             signature = hex_string_to_binary(signature_input);
         }
         else {
-            std::cout << " from file " << signature_input;
+            if (!result_only) {
+                std::cout << " from file " << signature_input;
+            }
             std::string hex_signature = read_file(signature_input);
             signature = from_hex_string(hex_signature);
         }
 
-        std::cout << " with public key from " << pk_file << "..." << std::endl;
+        if (!result_only) {
+            std::cout << " with public key from " << pk_file << "..." << std::endl;
+        }
 
         // Read public key from file
         std::string hex_pk = read_file(pk_file);
@@ -279,16 +306,21 @@ void verify_signature(const std::string& message_input, const std::string& pk_fi
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
 
-        if (result == 0) {
-            std::cout << "Verification SUCCESSFUL! The signature is valid." << std::endl;
-        }
-        else {
-            std::cout << "Verification FAILED! The signature is invalid." << std::endl;
-        }
+        if (result_only) {
+            // Just print the result code
+            std::cout << result << std::endl;
+        } else {
+            if (result == 0) {
+                std::cout << "Verification SUCCESSFUL! The signature is valid." << std::endl;
+            }
+            else {
+                std::cout << "Verification FAILED! The signature is invalid." << std::endl;
+            }
 
-        // Print execution time if requested
-        if (measure_time) {
-            std::cout << "Execution time: " << duration.count() << " us" << std::endl;
+            // Print execution time if requested
+            if (measure_time) {
+                std::cout << "Execution time: " << duration.count() << " us" << std::endl;
+            }
         }
     }
     catch (const std::exception& e) {
@@ -316,6 +348,7 @@ int main(int argc, char* argv[]) {
     bool sign_mode = false;
     bool verify_mode = false;
     bool measure_time = false;
+    bool print_result = false;
     std::string message_input;
     std::string sk_file;
     std::string pk_file;
@@ -338,6 +371,9 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "-t" || arg == "--time") {
             measure_time = true;
+        }
+        else if (arg == "--result") {
+            print_result = true;
         }
         else if (arg.find("--message=") == 0) {
             message_input = get_option_value(arg);
@@ -376,7 +412,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        sign_message(message_input, sk_file, output_file, measure_time);
+        sign_message(message_input, sk_file, output_file, measure_time, print_result);
         return 0;
     }
 
@@ -395,7 +431,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        verify_signature(message_input, pk_file, signature_input, measure_time);
+        verify_signature(message_input, pk_file, signature_input, measure_time, print_result);
         return 0;
     }
 
